@@ -16,6 +16,7 @@ CORS_ALLOW_CREDENTIALS = True  # <-- Muy importante para las cookies
 # AUTH_USER_MODEL
 # ======================
 AUTH_USER_MODEL = 'accounts.User'
+APPEND_SLASH = False
 
 # ======================
 # Apps
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_spectacular',
+    'auditlog',
     # Apps propias
     'accounts', 
 ]
@@ -86,6 +88,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware', # <--
+    'auditlog.middleware.AuditlogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Add this line back in the correct order

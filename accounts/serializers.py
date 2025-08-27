@@ -1,70 +1,91 @@
+# apps/accounts/serializers.py
 from rest_framework import serializers
-from .models import User, Role
+from .models import Role, Permission, User, UserActionLog
 
-# Serializer para el modelo de Rol
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ("id", "label", "code", "parent")
+
+class PermissionTreeSerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Permission
+        fields = ("label", "code", "children")
+
+    def get_children(self, obj):
+        return PermissionTreeSerializer(obj.children.all(), many=True).data
+
 class RoleSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True, read_only=True)
+    permission_codes = serializers.ListField(
+        child=serializers.CharField(), write_only=True, required=False
+    )
+
     class Meta:
         model = Role
-        fields = ['id', 'name', 'description']
+        fields = ("id", "name", "description", "permissions", "permission_codes")
 
-# Serializer para el modelo de Usuario
+    def create(self, validated_data):
+        codes = validated_data.pop("permission_codes", [])
+        role = Role.objects.create(**validated_data)
+        if codes:
+            perms = Permission.objects.filter(code__in=codes)
+            role.permissions.set(perms)
+        return role
+
+    def update(self, instance, validated_data):
+        codes = validated_data.pop("permission_codes", None)
+        instance = super().update(instance, validated_data)
+        if codes is not None:
+            perms = Permission.objects.filter(code__in=codes)
+            instance.permissions.set(perms)
+        return instance
+
 class UserSerializer(serializers.ModelSerializer):
-    # Esto es para que DRF incluya el nombre del rol en el JSON
-    role_name = serializers.CharField(source='role.name', read_only=True)
-    
-    # Campo 'confirm_password' para la validación
-    confirm_password = serializers.CharField(write_only=True, required=False)
-
-    # Agregamos el campo is_active para que sea visible, pero no editable en la API
-    is_active = serializers.BooleanField(read_only=True)
+    role_name = serializers.CharField(source="role.name", read_only=True)
+    password = serializers.CharField(write_only=True, required=True)  # agregar password
+    confirm_password = serializers.CharField(write_only=True, required=True)  # opcional, si quieres validación
 
     class Meta:
         model = User
-        # Agregamos 'is_active' a la lista de campos
-        fields = ['id', 'username', 'email', 'role', 'role_name', 'is_active', 'password', 'confirm_password']
-        extra_kwargs = {
-            # Hacemos que la contraseña sea opcional al actualizar con PATCH
-            'password': {'write_only': True, 'required': False},
-            'role': {'required': False} 
-        }
+        fields = ("id", "username", "email", "first_name", "last_name", "role", "role_name", "is_active", "password", "confirm_password")
 
-    # Método para validar los datos de entrada
     def validate(self, data):
-        # Valida contraseñas solo si se proporcionan en el request
-        password = data.get('password')
-        confirm_password = data.get('confirm_password')
-
-        if password and confirm_password and password != confirm_password:
-            raise serializers.ValidationError({"confirm_password": "Las contraseñas no coinciden."})
-        
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Las contraseñas no coinciden")
         return data
 
-    # Método para crear un nuevo usuario
     def create(self, validated_data):
-        validated_data.pop('confirm_password', None) # Elimina el campo de confirmación
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            role=validated_data.get('role')
-        )
+        password = validated_data.pop("password")
+        validated_data.pop("confirm_password", None)
+        user = User(**validated_data)
+        user.set_password(password)  # 🔑 encripta la contraseña
+        user.save()
         return user
 
-    # Método para actualizar un usuario
     def update(self, instance, validated_data):
-        if 'password' in validated_data:
-            instance.set_password(validated_data['password'])
-            validated_data.pop('password')
-        validated_data.pop('confirm_password', None)
-        
-        return super().update(instance, validated_data)
-    
-# Serializer para el cambio de contraseña
+        password = validated_data.pop("password", None)
+        validated_data.pop("confirm_password", None)
+        instance = super().update(instance, validated_data)
+        if password:
+            instance.set_password(password)
+            instance.save()
+        return instance
+
 class PasswordChangeSerializer(serializers.Serializer):
-    password = serializers.CharField(required=True)
-    confirm_password = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        if data['password'] != data['confirm_password']:
-            raise serializers.ValidationError({"confirm_password": "Las contraseñas no coinciden."})
+        if data["password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Las contraseñas no coinciden.")
         return data
+
+class UserActionLogSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = UserActionLog
+        fields = ("id","user_email","action","method","path","ip","extra","timestamp")

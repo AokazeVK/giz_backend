@@ -1,28 +1,29 @@
+# apps/accounts/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    login_view,
-    logout_view,
-    refresh_token_view,
-    profile_view,
-    public_view,
-    RoleViewSet,
-    UserViewSet
+    login_view, logout_view, refresh_token_view, profile_view, public_view,
+    RoleViewSet, UserViewSet, permissions_tree, LogsView
 )
 
-# Crea un router para los ViewSets
 router = DefaultRouter()
-router.register(r'roles', RoleViewSet, basename='roles')
-router.register(r'users', UserViewSet, basename='users')
+router.register("roles", RoleViewSet, basename="roles")
+router.register("users", UserViewSet, basename="users")
 
 urlpatterns = [
-    # Endpoints existentes
+    # Auth
     path("login/", login_view),
     path("logout/", logout_view),
     path("refresh/", refresh_token_view),
     path("profile/", profile_view),
     path("public/", public_view),
 
-    # Endpoints CRUD
+    # Permisos
+    path("permissions/tree/", permissions_tree),
+
+    # Logs globales
+    path("logs/", LogsView.as_view()),
+
+    # CRUDs
     path("", include(router.urls)),
 ]
