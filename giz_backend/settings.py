@@ -20,7 +20,7 @@ AUTH_USER_MODEL = 'accounts.User'
 APPEND_SLASH = False
 
 
-MEDIA_URL = "/media/"
+MEDIA_URL = "/api/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, config('MEDIA_ROOT_PATH', default='media'))
 
 # ======================
