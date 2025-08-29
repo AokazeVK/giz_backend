@@ -37,6 +37,7 @@ TREE = {
                 {"label": "Editar Ministerios", "code": "editar_ministerios"},
                 {"label": "Eliminar Ministerios", "code": "eliminar_ministerios"},
                 {"label": "Listar Ministerios", "code": "listar_ministerios"},
+                {"label": "Toggle Ministerios", "code": "toggle_estado"},
             ]
         },
         {
@@ -45,6 +46,7 @@ TREE = {
                 {"label": "Editar Encargados", "code": "editar_encargados"},
                 {"label": "Eliminar Encargados", "code": "eliminar_encargados"},
                 {"label": "Listar Encargados", "code": "listar_encargados"},
+                {"label": "Toggle Encargados", "code": "toggle_estado"},
                 {"label": "Listar Encargados por Ministerio", "code": "listar_encargados_por_ministerio"},
             ]
         },

@@ -56,10 +56,10 @@ class MinisterioViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def toggle_estado(self, request, pk=None):
         ministerio = self.get_object()
-        ministerio.estado = not ministerio.estado
+        ministerio.is_active = not ministerio.is_active
         ministerio.save()
         
-        status_message = "activo" if ministerio.estado else "inactivo"
+        status_message = "activo" if ministerio.is_active else "inactivo"
         log_user_action(
             request.user, 
             f"Cambió estado de Ministerio '{ministerio.nombre}' a '{status_message}'", 
@@ -134,10 +134,10 @@ class EncargadoViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def toggle_estado(self, request, pk=None):
         encargado = self.get_object()
-        encargado.estado = not encargado.estado
+        encargado.is_active = not encargado.is_active
         encargado.save()
         
-        status_message = "activo" if encargado.estado else "inactivo"
+        status_message = "activo" if encargado.is_active else "inactivo"
         log_user_action(
             request.user, 
             f"Cambió estado de Encargado '{encargado.nombre}' a '{status_message}'", 
