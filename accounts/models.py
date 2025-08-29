@@ -9,6 +9,8 @@ from django.core.files import File
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)  # toggle activar/desactivar
+
     # ManyToMany real con tabla intermedia
     permissions = models.ManyToManyField(
         "Permission",

@@ -150,6 +150,7 @@ class RoleViewSet(viewsets.ModelViewSet):
         "update": "editar_roles",
         "partial_update": "editar_roles",
         "destroy": "eliminar_roles",
+        "toggle_status": "editar_roles",  # Permiso para el nuevo método
         "set_permissions": "editar_permisos_roles",
         "get_permissions_list": "listar_roles",
     }
@@ -180,6 +181,42 @@ class RoleViewSet(viewsets.ModelViewSet):
         role.permissions.set(perms)
         log_user_action(request.user, f"Actualizó permisos de rol '{role.name}'", request, extra={"codes": codes})
         return Response({"message": "Permisos actualizados", "count": perms.count()})
+
+    @action(detail=True, methods=['post'], url_path='toggle-status')
+    def toggle_status(self, request, pk=None):
+        """
+        Activa o desactiva un rol. No permite desactivar un rol si tiene
+        usuarios activos asociados.
+        """
+        role = self.get_object()
+
+        # Si el estado actual es activo, significa que el cambio lo hará inactivo.
+        # Es en ese momento cuando necesitamos validar.
+        if role.is_active:
+            # Revisa si hay usuarios activos con este rol
+            if User.objects.filter(role=role, is_active=True).exists():
+                return Response(
+                    {'error': 'No se puede desactivar este rol porque tiene usuarios activos asignados.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Si la validación pasa, cambia el estado del rol
+        role.is_active = not role.is_active
+        role.save()
+        
+        status_message = "activo" if role.is_active else "inactivo"
+        log_user_action(
+            request.user, 
+            f"Cambió estado del rol '{role.name}' a '{status_message}'", 
+            request
+        )
+        return Response(
+            {'message': f'El rol {role.name} ahora está {status_message}.'},
+            status=status.HTTP_200_OK
+        )
+
+
+
 
 
 class UserViewSet(viewsets.ModelViewSet):
