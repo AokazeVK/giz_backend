@@ -19,12 +19,11 @@ Es una buena práctica para aislar las dependencias del proyecto.
 # En macOS/Linux
     source venv/bin/activate
 
-3. Instalar dependencias:
-Usa el archivo requirements.txt que ya tienes para instalar todas las librerías necesarias.
+3. Instalar dependencias: Usa el archivo requirements.txt que ya tienes para instalar todas las librerías necesarias.
     pip install -r requirements.txt
 
-4. Configurar las variables de entorno:
-Crea un archivo .env en la raíz de tu proyecto y añade las siguientes variables, rellenando con tus datos.
+4. Configurar las variables de entorno: Crea un archivo .env en la raíz de tu proyecto y añade las siguientes variables, rellenando con tus datos.
+
 # .env
     SECRET_KEY=<TU_CLAVE_SECRETA_DE_DJANGO>
     DEBUG=True
@@ -44,8 +43,7 @@ Crea un archivo .env en la raíz de tu proyecto y añade las siguientes variable
     python manage.py makemigrations
     python manage.py migrate
 
-6. Poblar la base de datos (seeding):
-Usa el comando que creamos para generar el superusuario y los permisos.
+6. Poblar la base de datos (seeding): Usa el comando que creamos para generar el superusuario y los permisos.
     python manage.py seed_all
 
 7. Iniciar el servidor:
