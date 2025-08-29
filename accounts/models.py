@@ -2,7 +2,9 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from auditlog.registry import auditlog
-
+from PIL import Image
+from io import BytesIO
+from django.core.files import File
 
 class Role(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -39,13 +41,29 @@ class RolePermission(models.Model):
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     role = models.ForeignKey(Role, null=True, blank=True, on_delete=models.SET_NULL)
+    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.lower().strip()
+            
+        super().save(*args, **kwargs)
+
+        if self.avatar:
+            img = Image.open(self.avatar.path)
+
+            if img.height > 300 or img.width > 300:
+                output_size = (300, 300)
+                img.thumbnail(output_size)
+                
+                # Guarda la imagen redimensionada
+                img.save(self.avatar.path)
+
     def __str__(self):
         return self.email
-
 
 class UserActionLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

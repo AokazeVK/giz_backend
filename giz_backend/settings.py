@@ -1,12 +1,13 @@
 from pathlib import Path
+from decouple import config
 from datetime import timedelta
-
+import os
 # ======================
 # Base
 # ======================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-muk!r29+-3-p45fcrz&&k!*w*au*4chn#36gfid!y%(i2e40le'
+SECRET_KEY = config('SECRET_KEY')
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 CORS_ALLOW_ALL_ORIGINS = True
@@ -17,6 +18,10 @@ CORS_ALLOW_CREDENTIALS = True  # <-- Muy importante para las cookies
 # ======================
 AUTH_USER_MODEL = 'accounts.User'
 APPEND_SLASH = False
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, config('MEDIA_ROOT_PATH', default='media'))
 
 # ======================
 # Apps
@@ -37,7 +42,8 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'auditlog',
     # Apps propias
-    'accounts', 
+    'accounts',
+    'difusion'
 ]
 
 # ======================
@@ -70,11 +76,11 @@ SIMPLE_JWT = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'giz_local',
-        'USER': 'postgres',
-        'PASSWORD': 'imsixthguns123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': config('DATABASE_NAME'),
+        'USER': config('DATABASE_USER'),
+        'PASSWORD': config('DATABASE_PASSWORD'),
+        'HOST': config('DATABASE_HOST'),
+        'PORT': config('DATABASE_PORT', cast=int),
     }
 }
 

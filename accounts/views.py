@@ -23,7 +23,7 @@ from .utils import log_user_action
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    email = request.data.get("email")
+    email = request.data.get("email", "").lower().strip()
     password = request.data.get("password")
     user = authenticate(request, username=email, password=password)
 
@@ -97,9 +97,13 @@ def profile_view(request):
         perms_list = [{"label": rp.permission.label, "code": rp.permission.code} for rp in permissions]
         role_data = {"name": user.role.name, "permissions": perms_list}
 
+
+    avatar_url = user.avatar.url if user.avatar else None
+
     return Response({
         "username": user.username,
         "email": user.email,
+        "avatar": avatar_url,  #
         "role": role_data
     })
 
@@ -134,7 +138,7 @@ def permissions_tree(request):
 # VIEWSETS: Roles & Users
 # =========================
 class RoleViewSet(viewsets.ModelViewSet):
-    queryset = Role.objects.all().prefetch_related("permissions")
+    queryset = Role.objects.all().prefetch_related("permissions").order_by("id")
     serializer_class = RoleSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
 
@@ -179,7 +183,7 @@ class RoleViewSet(viewsets.ModelViewSet):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all().select_related("role")
+    queryset = User.objects.all().select_related("role").order_by("id")
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
 

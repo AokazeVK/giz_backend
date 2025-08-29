@@ -1,0 +1,26 @@
+# Variables de Entorno
+.env
+
+# Entorno Virtual
+venv/
+env/
+
+# Archivos de Caché y Temporales
+*.pyc
+__pycache__/
+.pytest_cache/
+.coverage
+
+# Archivos de Django
+media/
+static_collected/
+db.sqlite3
+
+# Archivos de IDE/Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos de Sistema
+.DS_Store
