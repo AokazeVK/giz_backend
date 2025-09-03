@@ -1,10 +1,11 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Prefetch
 
-from .models import Ministerio, Encargado
-from .serializers import MinisterioSerializer, EncargadoSerializer
+from .models import Ministerio, Encargado, Convocatoria, FechaConvocatoria, ArchivoFechaConvocatoria
+from .serializers import MinisterioSerializer, EncargadoSerializer,  ConvocatoriaSerializer, FechaConvocatoriaSerializer, ArchivoFechaConvocatoriaSerializer
 from accounts.permissions import HasPermissionMap
 # Importa la función de utilidad para el registro de acciones
 from accounts.utils import log_user_action
@@ -147,4 +148,125 @@ class EncargadoViewSet(viewsets.ModelViewSet):
             {'message': f'Encargado {encargado.nombre} ahora está {status_message}.'},
             status=status.HTTP_200_OK
         )
+    
+
+
+class ConvocatoriaViewSet(viewsets.ModelViewSet):
+    queryset = Convocatoria.objects.all().order_by("id")
+    serializer_class = ConvocatoriaSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "listar_convocatorias",
+        "retrieve": "listar_convocatorias",
+        "create": "crear_convocatorias",
+        "update": "editar_convocatorias",
+        "partial_update": "editar_convocatorias",
+        "destroy": "eliminar_convocatorias",
+        "toggle_estado": "editar_convocatorias",
+        "con_fechas": "listar_convocatorias",
+    }
+
+    def perform_create(self, serializer):
+        convocatoria = serializer.save()
+        log_user_action(self.request.user, f"Creó convocatoria '{convocatoria.nombre}'", self.request)
+
+    def perform_update(self, serializer):
+        convocatoria = serializer.save()
+        log_user_action(self.request.user, f"Editó convocatoria '{convocatoria.nombre}'", self.request)
+
+    def perform_destroy(self, instance):
+        log_user_action(self.request.user, f"Eliminó convocatoria '{instance.nombre}'", self.request)
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=["post"], url_path="toggle-estado")
+    def toggle_estado(self, request, pk=None):
+        convocatoria = self.get_object()
+        convocatoria.is_active = not convocatoria.is_active
+        convocatoria.save()
+        status_message = "activo" if convocatoria.is_active else "inactivo"
+        log_user_action(request.user, f"Cambió estado de Convocatoria '{convocatoria.nombre}' a '{status_message}'", request)
+        return Response({"message": f"Convocatoria {convocatoria.nombre} ahora está {status_message}."})
+
+    @action(detail=False, methods=["get"], url_path="con-fechas")
+    def con_fechas(self, request):
+        """
+        GET /api/difusion/convocatorias/con-fechas/?gestion=2025
+        Fallback: toma gestion desde cookie 'gestion' si no viene en query params.
+        Devuelve convocatorias con sus fechas filtradas por la gestion dada.
+        """
+        gestion = request.query_params.get("gestion") or request.COOKIES.get("gestion")
+        if not gestion:
+            return Response({"error": "Parametro 'gestion' requerido (o cookie 'gestion' presente)"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prefetch fechas filtradas para evitar N+1
+        fechas_qs = FechaConvocatoria.objects.filter(gestion=gestion, is_active=True)
+        qs = self.get_queryset().prefetch_related(Prefetch("fechas", queryset=fechas_qs))
+        serializer = self.get_serializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
+
+
+class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
+    queryset = FechaConvocatoria.objects.all().order_by("id")
+    serializer_class = FechaConvocatoriaSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "listar_fechas_convocatorias",
+        "retrieve": "listar_fechas_convocatorias",
+        "create": "crear_fechas_convocatorias",
+        "update": "editar_fechas_convocatorias",
+        "partial_update": "editar_fechas_convocatorias",
+        "destroy": "eliminar_fechas_convocatorias",
+        "toggle_estado": "editar_fechas_convocatorias",
+    }
+
+    def perform_create(self, serializer):
+        # toma gestion desde cookie (obligatoria)
+        gestion = self.request.COOKIES.get("gestion")
+        if not gestion:
+            # no permitimos crear sin gestion
+            raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
+        fecha = serializer.save(gestion=gestion)
+        log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})", self.request)
+
+    def perform_update(self, serializer):
+        fecha = serializer.save()
+        log_user_action(self.request.user, f"Editó fecha {fecha.id} de convocatoria '{fecha.convocatoria.nombre}'", self.request)
+
+    def perform_destroy(self, instance):
+        log_user_action(self.request.user, f"Eliminó fecha {instance.id} de convocatoria '{instance.convocatoria.nombre}'", self.request)
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=["post"], url_path="toggle-estado")
+    def toggle_estado(self, request, pk=None):
+        fecha = self.get_object()
+        fecha.is_active = not fecha.is_active
+        fecha.save()
+        status_message = "activo" if fecha.is_active else "inactivo"
+        log_user_action(request.user, f"Cambió estado de fecha {fecha.id} a '{status_message}'", request)
+        return Response({"message": f"Fecha {fecha.id} ahora está {status_message}."})
+
+
+class ArchivoFechaConvocatoriaViewSet(viewsets.ModelViewSet):
+    queryset = ArchivoFechaConvocatoria.objects.all().order_by("id")
+    serializer_class = ArchivoFechaConvocatoriaSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "listar_archivos_fechas_convocatorias",
+        "retrieve": "listar_archivos_fechas_convocatorias",
+        "create": "crear_archivos_fechas_convocatorias",
+        "destroy": "eliminar_archivos_fechas_convocatorias",
+    }
+
+    def perform_create(self, serializer):
+        archivo = serializer.save()
+        log_user_action(self.request.user, f"Subió archivo '{archivo.nombre}' (fecha_id={archivo.fecha_convocatoria_id})", self.request)
+
+    def perform_destroy(self, instance):
+        # opcional: borrar archivo del FS si quieres
+        # instance.file.delete(save=False)
+        log_user_action(self.request.user, f"Eliminó archivo '{instance.nombre}' (fecha_id={instance.fecha_convocatoria_id})", self.request)
+        super().perform_destroy(instance)
     

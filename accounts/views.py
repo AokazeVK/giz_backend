@@ -25,6 +25,11 @@ from .utils import log_user_action
 def login_view(request):
     email = request.data.get("email", "").lower().strip()
     password = request.data.get("password")
+    gestion = request.data.get("gestion")  # <-- se recibe del body
+
+    if not gestion:
+        return Response({"error": "El campo 'gestion' es obligatorio"}, status=status.HTTP_400_BAD_REQUEST)
+
     user = authenticate(request, username=email, password=password)
 
     if user is None:
@@ -37,12 +42,18 @@ def login_view(request):
 
     refresh = RefreshToken.for_user(user)
     response = Response({"message": "Login exitoso"})
+
+    # Tokens
     response.set_cookie(key="access_token", value=str(refresh.access_token),
                         httponly=True, secure=False, samesite='Lax', max_age=300)
     response.set_cookie(key="refresh_token", value=str(refresh),
                         httponly=True, secure=False, samesite='Lax', max_age=86400)
 
-    log_user_action(user, "Login exitoso", request)
+    # Nueva cookie gestion
+    response.set_cookie(key="gestion", value=gestion,
+                        httponly=True, secure=False, samesite='Lax', max_age=86400)
+
+    log_user_action(user, f"Login exitoso en gestión {gestion}", request)
     return response
 
 
@@ -57,10 +68,14 @@ def logout_view(request):
         response = Response({"message": "Logout exitoso"})
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
+        response.delete_cookie("gestion")
+
     except TokenError:
         response = Response({"message": "Logout exitoso"})
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
+        response.delete_cookie("gestion")
+
 
     log_user_action(request.user, "Logout exitoso", request)
     return response
@@ -74,13 +89,23 @@ def refresh_token_view(request):
         return Response({"error": "No hay refresh token"}, status=status.HTTP_400_BAD_REQUEST)
     try:
         refresh = RefreshToken(refresh_token)
+
+        # Obtener usuario desde el refresh
+        user_id = refresh["user_id"]
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            user = None
+
         response = Response({"message": "Token renovado"})
         response.set_cookie(key="access_token", value=str(refresh.access_token),
                             httponly=True, secure=False, samesite='Lax', max_age=300)
-        log_user_action(None, "Refresh token (nuevo access)", request)
+
+        log_user_action(user, "Refresh token (nuevo access)", request)  # <-- ahora tendrá user
         return response
     except TokenError:
         return Response({"error": "Refresh token inválido o expirado"}, status=status.HTTP_401_UNAUTHORIZED)
+
 
 
 # =========================
@@ -90,6 +115,7 @@ def refresh_token_view(request):
 @permission_classes([IsAuthenticated])
 def profile_view(request):
     user = request.user
+    gestion = request.COOKIES.get("gestion")  # <-- agregado
 
     role_data = None
     if user.role:
@@ -104,7 +130,8 @@ def profile_view(request):
         "username": user.username,
         "email": user.email,
         "avatar": avatar_url,  #
-        "role": role_data
+        "role": role_data,
+        "gestion": gestion
     })
 
 
