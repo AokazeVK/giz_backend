@@ -9,8 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/accounts/", include("accounts.urls")),  # Incluye las URLs de tu app 'accounts'
     path("api/difusion/", include("difusion.urls")),
-    # Si tienes otra app, por ejemplo 'posts', la agregas aquí:
-    # path("api/posts/", include("posts.urls")),
+    path("api/cursos/", include("cursos.urls")),
     
      # Endpoint para generar el esquema de la API en formato YAML/JSON
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

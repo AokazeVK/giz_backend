@@ -1,5 +1,4 @@
 # apps/accounts/management/commands/seed_all.py
-
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -32,22 +31,62 @@ TREE = {
             ]
         },
         {
-            "label": "Ministerios", "code": "ministerios", "children": [
-                {"label": "Crear Ministerios", "code": "crear_ministerios"},
-                {"label": "Editar Ministerios", "code": "editar_ministerios"},
-                {"label": "Eliminar Ministerios", "code": "eliminar_ministerios"},
-                {"label": "Listar Ministerios", "code": "listar_ministerios"},
-                {"label": "Toggle Ministerios", "code": "toggle_estado"},
+            "label": "Difusión", "code": "difusion", "children": [
+                {
+                    "label": "Ministerios", "code": "ministerios", "children": [
+                        {"label": "Crear Ministerios", "code": "crear_ministerios"},
+                        {"label": "Editar Ministerios", "code": "editar_ministerios"},
+                        {"label": "Eliminar Ministerios", "code": "eliminar_ministerios"},
+                        {"label": "Listar Ministerios", "code": "listar_ministerios"},
+                        {"label": "Toggle Ministerio", "code": "toggle_estado"},
+                    ]
+                },
+                {
+                    "label": "Encargados", "code": "encargados", "children": [
+                        {"label": "Crear Encargados", "code": "crear_encargados"},
+                        {"label": "Editar Encargados", "code": "editar_encargados"},
+                        {"label": "Eliminar Encargados", "code": "eliminar_encargados"},
+                        {"label": "Listar Encargados", "code": "listar_encargados"},
+                        {"label": "Toggle Encargados", "code": "toggle_estado_encargado"}, # Recomiendo cambiar este code para evitar conflictos
+                        {"label": "Listar Encargados por Ministerio", "code": "listar_encargados_por_ministerio"},
+                    ]
+                },
+                {
+                    "label": "Convocatorias", "code": "convocatorias", "children": [
+                        {"label": "Crear Convocatorias", "code": "crear_convocatorias"},
+                        {"label": "Editar Convocatorias", "code": "editar_convocatorias"},
+                        {"label": "Eliminar Convocatorias", "code": "eliminar_convocatorias"},
+                        {"label": "Listar Convocatorias", "code": "listar_convocatorias"},
+                        {"label": "Toggle Convocatoria", "code": "toggle_estado_convocatoria"}, # Recomiendo cambiar este code para evitar conflictos
+                    ]
+                },
+                {
+                    "label": "Fechas de Convocatoria", "code": "fechas_convocatoria", "children": [
+                        {"label": "Crear Fechas Convocatoria", "code": "crear_fechas_convocatorias"},
+                        {"label": "Editar Fechas Convocatoria", "code": "editar_fechas_convocatorias"},
+                        {"label": "Eliminar Fechas Convocatoria", "code": "eliminar_fechas_convocatorias"},
+                        {"label": "Listar Fechas Convocatoria", "code": "listar_fechas_convocatorias"},
+                        {"label": "Toggle Fecha Convocatoria", "code": "toggle_estado_fecha_convocatoria"}, # Recomiendo cambiar este code para evitar conflictos
+                    ]
+                },
+                {
+                    "label": "Archivos", "code": "archivos", "children": [
+                        {"label": "Crear Archivos", "code": "crear_archivos_fechas_convocatorias"},
+                        {"label": "Eliminar Archivos", "code": "eliminar_archivos_fechas_convocatorias"},
+                        {"label": "Listar Archivos", "code": "listar_archivos_fechas_convocatorias"},
+                    ]
+                },
             ]
         },
         {
-            "label": "Encargados", "code": "encargados", "children": [
-                {"label": "Crear Encargados", "code": "crear_encargados"},
-                {"label": "Editar Encargados", "code": "editar_encargados"},
-                {"label": "Eliminar Encargados", "code": "eliminar_encargados"},
-                {"label": "Listar Encargados", "code": "listar_encargados"},
-                {"label": "Toggle Encargados", "code": "toggle_estado"},
-                {"label": "Listar Encargados por Ministerio", "code": "listar_encargados_por_ministerio"},
+            "label": "Cursos", "code": "cursos", "children": [
+                {"label": "Crear Cursos", "code": "crear_cursos"},
+                {"label": "Editar Cursos", "code": "editar_cursos"},
+                {"label": "Eliminar Cursos", "code": "eliminar_cursos"},
+                {"label": "Listar Cursos", "code": "listar_cursos"},
+                {"label": "Listar Cursos Activos", "code": "listar_cursos_activos"},
+                {"label": "Toggle Curso", "code": "toggle_estado_curso"},
+                {"label": "Aumentar Visualizaciones", "code": "aumentar_visualizaciones_curso"},
             ]
         },
     ]
@@ -61,6 +100,7 @@ def upsert_permissions(node, parent=None):
         obj.save()
     for child in node.get("children", []):
         upsert_permissions(child, obj)
+# ... (El resto de la clase Command y la lógica de creación de usuario se mantiene igual)
 
 class Command(BaseCommand):
     help = 'Crea/actualiza los permisos, el rol de Super Admin y un superusuario.'
@@ -78,7 +118,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Permisos base creados/actualizados exitosamente."))
 
         # 2. Crea o obtiene el rol de Super Administrador
-        role, created = Role.objects.get_or_create(name="Super Administrador",  defaults={"description": "Este rol tiene todos los privilegios del sistema."})
+        role, created = Role.objects.get_or_create(name="Super Administrador", defaults={"description": "Este rol tiene todos los privilegios del sistema."})
         if created:
             self.stdout.write(self.style.SUCCESS('Rol "Super Administrador" creado.'))
         else:

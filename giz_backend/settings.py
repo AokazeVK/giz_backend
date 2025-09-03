@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'auditlog',
     # Apps propias
     'accounts',
-    'difusion'
+    'difusion',
+    'cursos',
 ]
 
 # ======================
