@@ -57,7 +57,7 @@ TREE = {
                         {"label": "Editar Convocatorias", "code": "editar_convocatorias"},
                         {"label": "Eliminar Convocatorias", "code": "eliminar_convocatorias"},
                         {"label": "Listar Convocatorias", "code": "listar_convocatorias"},
-                        {"label": "Toggle Convocatoria", "code": "toggle_estado_convocatoria"}, # Recomiendo cambiar este code para evitar conflictos
+                        {"label": "Toggle Convocatoria", "code": "toggle_estado_convocatoria"}, 
                     ]
                 },
                 {
@@ -66,7 +66,7 @@ TREE = {
                         {"label": "Editar Fechas Convocatoria", "code": "editar_fechas_convocatorias"},
                         {"label": "Eliminar Fechas Convocatoria", "code": "eliminar_fechas_convocatorias"},
                         {"label": "Listar Fechas Convocatoria", "code": "listar_fechas_convocatorias"},
-                        {"label": "Toggle Fecha Convocatoria", "code": "toggle_estado_fecha_convocatoria"}, # Recomiendo cambiar este code para evitar conflictos
+                        {"label": "Toggle Fecha Convocatoria", "code": "toggle_estado_fecha_convocatoria"}, 
                     ]
                 },
                 {
@@ -100,7 +100,6 @@ def upsert_permissions(node, parent=None):
         obj.save()
     for child in node.get("children", []):
         upsert_permissions(child, obj)
-# ... (El resto de la clase Command y la lógica de creación de usuario se mantiene igual)
 
 class Command(BaseCommand):
     help = 'Crea/actualiza los permisos, el rol de Super Admin y un superusuario.'

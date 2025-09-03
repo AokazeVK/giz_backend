@@ -2,7 +2,6 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-
 from .views import MinisterioViewSet, EncargadoViewSet, ConvocatoriaViewSet, FechaConvocatoriaViewSet, ArchivoFechaConvocatoriaViewSet
 
 # Crea un router y registra tus ViewSets
@@ -16,4 +15,5 @@ router.register(r'archivos', ArchivoFechaConvocatoriaViewSet, basename="archivos
 # Las URL generadas por el router se incluyen automáticamente
 urlpatterns = [
     path('', include(router.urls)),
+
 ]

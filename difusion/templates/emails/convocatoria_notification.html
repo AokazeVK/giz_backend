@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ convocatoria.nombre }}</title>
+</head>
+<body>
+    <h2>Hola {{ encargado_nombre }}</h2>
+    <p>Se ha publicado la convocatoria: <strong>{{ convocatoria.nombre }}</strong></p>
+    <p>{{ convocatoria.descripcion }}</p>
+
+    {% if convocatoria_archivos %}
+        <p>Archivos adjuntos:</p>
+        <ul>
+        {% for archivo in convocatoria_archivos %}
+            <li><a href="{{ archivo.archivo_url }}">{{ archivo.nombre }}</a></li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>
