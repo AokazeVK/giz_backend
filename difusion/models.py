@@ -60,6 +60,7 @@ class ArchivoFechaConvocatoria(models.Model):
     )
     nombre = models.CharField(max_length=255)
     file = models.FileField(upload_to="convocatorias/files/")
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

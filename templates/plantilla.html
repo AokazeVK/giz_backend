@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nueva Convocatoria Publicada</title>
+</head>
+<body>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>¡Atención! Nueva Convocatoria Publicada</h2>
+        <p>Hola, {{ encargado_nombre }},</p>
+        <p>Se ha publicado una nueva convocatoria en el sistema de gestión.</p>
+        
+        <h3>Detalles de la Convocatoria</h3>
+        <ul>
+            <li><strong>Nombre:</strong> {{ convocatoria.nombre }}</li>
+            <li><strong>Descripción:</strong> {{ convocatoria.descripcion }}</li>
+            <li><strong>Fechas:</strong>
+                <ul>
+                    {% for fecha in convocatoria.fechas.all %}
+                        <li>{{ fecha.fecha_inicio }} - {{ fecha.fecha_fin }} (Gestión: {{ fecha.gestion }})</li>
+                    {% endfor %}
+                </ul>
+            </li>
+        </ul>
+        
+        <h3>Archivos adjuntos</h3>
+        <ul>
+            {% for archivo in convocatoria_archivos %}
+                <li><a href="{{ archivo.url_file }}">{{ archivo.nombre }}</a></li>
+            {% endfor %}
+        </ul>
+        
+        <p>Por favor, revisa los detalles en el sistema.</p>
+        <p>Saludos cordiales,</p>
+        <p>Equipo de Gestión</p>
+    </div>
+</body>
+</html>

@@ -15,13 +15,14 @@ class MinisterioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ministerio
         fields = ["id", "nombre", "direccion", "is_active", "encargados"]
+
 class ArchivoFechaConvocatoriaSerializer(serializers.ModelSerializer):
     url_file = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = ArchivoFechaConvocatoria
-        fields = ["id", "fecha_convocatoria", "nombre", "file", "url_file", "created_at"]
-        read_only_fields = ["id", "url_file", "created_at"]
+        fields = ["id", "fecha_convocatoria", "nombre", "file", "url_file", "is_active", "created_at"]
+        read_only_fields = ["id", "url_file", "is_active", "created_at"]
 
     def get_url_file(self, obj):
         request = self.context.get("request")

@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Prefetch
-
+from .utils import send_email_notification  # Asegúrate de que esta importación sea correcta
 from .models import Ministerio, Encargado, Convocatoria, FechaConvocatoria, ArchivoFechaConvocatoria
 from .serializers import MinisterioSerializer, EncargadoSerializer,  ConvocatoriaSerializer, FechaConvocatoriaSerializer, ArchivoFechaConvocatoriaSerializer
 from accounts.permissions import HasPermissionMap
@@ -206,6 +206,27 @@ class ConvocatoriaViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+# apps/your_app/views.py
+from django.db.models import Prefetch
+from django.conf import settings
+from .utils import send_email_notification  # Asegúrate de que esta importación sea correcta
+from .models import Ministerio, Encargado, Convocatoria, FechaConvocatoria, ArchivoFechaConvocatoria
+from .serializers import (
+    MinisterioSerializer,
+    EncargadoSerializer,
+    ConvocatoriaSerializer,
+    FechaConvocatoriaSerializer,
+    ArchivoFechaConvocatoriaSerializer,
+)
+from accounts.permissions import HasPermissionMap
+from accounts.utils import log_user_action
+from rest_framework import viewsets, status, serializers
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+
+# ... (tus otras clases de ViewSet)
+
 class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
     queryset = FechaConvocatoria.objects.all().order_by("id")
     serializer_class = FechaConvocatoriaSerializer
@@ -219,13 +240,15 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
         "partial_update": "editar_fechas_convocatorias",
         "destroy": "eliminar_fechas_convocatorias",
         "toggle_estado": "editar_fechas_convocatorias",
+        # Nuevo permiso para el endpoint de notificación
+        "enviar_notificacion": "crear_fechas_convocatorias", 
     }
 
+    # ... (tus métodos perform_create, perform_update, perform_destroy y toggle_estado)
+
     def perform_create(self, serializer):
-        # toma gestion desde cookie (obligatoria)
         gestion = self.request.COOKIES.get("gestion")
         if not gestion:
-            # no permitimos crear sin gestion
             raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
         fecha = serializer.save(gestion=gestion)
         log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})", self.request)
@@ -247,6 +270,53 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
         log_user_action(request.user, f"Cambió estado de fecha {fecha.id} a '{status_message}'", request)
         return Response({"message": f"Fecha {fecha.id} ahora está {status_message}."})
 
+    # El nuevo endpoint para enviar notificaciones
+    @action(detail=True, methods=["post"], url_path="enviar-notificacion")
+    def enviar_notificacion(self, request, pk=None):
+        """
+        Envía una notificación por correo a todos los encargados sobre los archivos
+        de una FechaConvocatoria específica.
+        URL: /api/difusion/fechas-convocatorias/{pk}/enviar-notificacion/
+        """
+        try:
+            fecha_convocatoria = self.get_object()
+            
+            # Obtener todos los encargados activos a quienes notificar
+            encargados = Encargado.objects.filter(is_active=True)
+            if not encargados.exists():
+                return Response({"message": "No hay encargados activos para notificar."}, status=status.HTTP_404_NOT_FOUND)
+            
+            recipient_list = [encargado.correo for encargado in encargados]
+            
+            # Obtener los archivos de esta fecha de convocatoria
+            archivos_qs = ArchivoFechaConvocatoria.objects.filter(fecha_convocatoria=fecha_convocatoria)
+            
+            # Ojo: Aquí es donde necesitamos el contexto del request para las URLs de los archivos
+            archivos_data = ArchivoFechaConvocatoriaSerializer(archivos_qs, many=True, context={'request': request}).data
+            
+            # Preparar el contexto del correo
+            context = {
+                'convocatoria': fecha_convocatoria.convocatoria,
+                'fecha_convocatoria': fecha_convocatoria,
+                'convocatoria_archivos': archivos_data,
+                'encargado_nombre': 'Estimado(a) Encargado(a)',
+            }
+            
+            subject = f"Nueva Convocatoria: {fecha_convocatoria.convocatoria.nombre}"
+            
+            if send_email_notification(subject, 'emails/convocatoria_notification.html', context, recipient_list):
+                log_user_action(
+                    request.user,
+                    f"Envió notificación de convocatoria '{fecha_convocatoria.convocatoria.nombre}' a encargados (fecha_id={pk})",
+                    request
+                )
+                return Response({"message": "Notificación por correo enviada exitosamente."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "No se pudo enviar la notificación por correo."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            # En caso de cualquier otro error inesperado
+            return Response({"error": f"Ocurrió un error: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ArchivoFechaConvocatoriaViewSet(viewsets.ModelViewSet):
     queryset = ArchivoFechaConvocatoria.objects.all().order_by("id")
