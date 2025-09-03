@@ -38,7 +38,7 @@ class FechaConvocatoriaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FechaConvocatoria
-        fields = ["id", "convocatoria", "fecha_inicio", "fecha_fin", "gestion", "is_active", "archivos", "created_at"]
+        fields = ["id", "convocatoria", "fecha_inicio", "hora_inicio", "fecha_fin", "gestion", "is_active", "archivos", "created_at"]
         read_only_fields = ["id", "gestion", "archivos", "created_at"]
 
     def validate(self, data):

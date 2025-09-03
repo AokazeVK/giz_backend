@@ -178,12 +178,11 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
         
         fecha = serializer.save(gestion=gestion)
-        
-        # Programar tarea de Celery para enviar el correo en la fecha de inicio
-        # Esto solo se hace cuando la fecha de inicio es en el futuro.
-        if fecha.fecha_inicio > datetime.now().date():
-            # Crear una agenda 'clocked' para la fecha y hora de inicio de la convocatoria
-            clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=datetime.combine(fecha.fecha_inicio, time()))
+        fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
+
+        # La creación de la tarea debe estar dentro de la condición
+        if fecha_hora_completa > datetime.now(): 
+            clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
             
             PeriodicTask.objects.create(
                 clocked=clocked,

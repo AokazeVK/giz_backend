@@ -1,7 +1,7 @@
 # apps/accounts/models.py
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-
+from datetime import time
 from auditlog.registry import auditlog
 
 
@@ -42,6 +42,7 @@ class FechaConvocatoria(models.Model):
         Convocatoria, on_delete=models.CASCADE, related_name="fechas"
     )
     fecha_inicio = models.DateField()
+    hora_inicio = models.TimeField(default=time(8, 0))
     fecha_fin = models.DateField()
     gestion = models.CharField(max_length=10)  # ej "2025"
     is_active = models.BooleanField(default=True)
