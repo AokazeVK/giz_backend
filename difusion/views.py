@@ -175,36 +175,29 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
     }
 
     def perform_create(self, serializer):
+        # Obtener la gestión de la cookie
         gestion = self.request.COOKIES.get("gestion")
         if not gestion:
             raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
-        
+
         fecha = serializer.save(gestion=gestion)
 
-        if fecha.fecha_inicio > datetime.now().date():
-            clocked, _ = ClockedSchedule.objects.get_or_create(
-                clocked_time=datetime.combine(fecha.fecha_inicio, time())
-            )
+        fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
+        fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
 
-            # Eliminar cualquier tarea previa con ese nombre
-            PeriodicTask.objects.filter(
-                name=f"Notificación convocatoria {fecha.id}"
-            ).delete()
-
-            PeriodicTask.objects.create(
+        if fecha_hora_completa > timezone.now():
+            clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
+            task = PeriodicTask.objects.create(
                 clocked=clocked,
                 name=f"Notificación convocatoria {fecha.id}",
-                task="difusion.tasks.enviar_convocatoria_email",
+                task="difusion.task.enviar_convocatoria_email",
                 args=json.dumps([fecha.id]),
                 one_off=True
             )
+            fecha.periodic_task = task
+            fecha.save()
 
-        log_user_action(
-            self.request.user,
-            f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})",
-            self.request
-        )
-
+        log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}'", self.request)
 
     def perform_update(self, serializer):
         fecha = serializer.save()
