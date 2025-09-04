@@ -25,10 +25,12 @@ class ArchivoFechaConvocatoriaSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "url_file", "is_active", "created_at"]
 
     def get_url_file(self, obj):
-        request = self.context.get("request")
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
+        # Usar la URL base del contexto si está disponible
+        base_url = self.context.get("base_url")
+        if obj.file and base_url:
+            return f"{base_url}{obj.file.url}"
         if obj.file:
+            # En caso de no haber base_url, solo devuelve la URL relativa
             return obj.file.url
         return None
 

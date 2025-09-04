@@ -158,9 +158,12 @@ AUTH_PASSWORD_VALIDATORS = [
 # Configuración regional
 # ======================
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/La_Paz'
 USE_I18N = True
 USE_TZ = True
+
+
+SITE_URL = config("SITE_URL")
 
 # ======================
 # Archivos estáticos
