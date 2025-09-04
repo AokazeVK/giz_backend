@@ -175,56 +175,63 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
     }
 
     def perform_create(self, serializer):
-        # Obtener la gestión de la cookie
         gestion = self.request.COOKIES.get("gestion")
         if not gestion:
             raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
-
+        
         fecha = serializer.save(gestion=gestion)
 
-        fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
-        fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
+        if fecha.fecha_inicio > datetime.now().date():
+            clocked, _ = ClockedSchedule.objects.get_or_create(
+                clocked_time=datetime.combine(fecha.fecha_inicio, time())
+            )
 
-        if fecha_hora_completa > timezone.now():
-            clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
-            task = PeriodicTask.objects.create(
+            # Eliminar cualquier tarea previa con ese nombre
+            PeriodicTask.objects.filter(
+                name=f"Notificación convocatoria {fecha.id}"
+            ).delete()
+
+            PeriodicTask.objects.create(
                 clocked=clocked,
                 name=f"Notificación convocatoria {fecha.id}",
-                task="difusion.task.enviar_convocatoria_email",
+                task="difusion.tasks.enviar_convocatoria_email",
                 args=json.dumps([fecha.id]),
                 one_off=True
             )
-            fecha.periodic_task = task
-            fecha.save()
 
-        log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}'", self.request)
+        log_user_action(
+            self.request.user,
+            f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})",
+            self.request
+        )
+
 
     def perform_update(self, serializer):
         fecha = serializer.save()
 
-        # Si tenía tarea asociada → eliminarla
-        if fecha.periodic_task:
-            fecha.periodic_task.delete()
-            fecha.periodic_task = None
+        if fecha.fecha_inicio > datetime.now().date():
+            clocked, _ = ClockedSchedule.objects.get_or_create(
+                clocked_time=datetime.combine(fecha.fecha_inicio, time())
+            )
 
-        # Reprogramar nueva si sigue activa
-        if fecha.is_active:
-            fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
-            fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
-            if fecha_hora_completa > timezone.now():
-                clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
-                task = PeriodicTask.objects.create(
-                    clocked=clocked,
-                    name=f"Notificación convocatoria {fecha.id}",
-                    task="difusion.task.enviar_convocatoria_email",
-                    args=json.dumps([fecha.id]),
-                    one_off=True
-                )
-                fecha.periodic_task = task
-                fecha.save()
+            # Eliminar cualquier tarea previa con ese nombre
+            PeriodicTask.objects.filter(
+                name=f"Notificación convocatoria {fecha.id}"
+            ).delete()
 
-        log_user_action(self.request.user, f"Editó fecha {fecha.id} de convocatoria '{fecha.convocatoria.nombre}'", self.request)
+            PeriodicTask.objects.create(
+                clocked=clocked,
+                name=f"Notificación convocatoria {fecha.id}",
+                task="difusion.tasks.enviar_convocatoria_email",
+                args=json.dumps([fecha.id]),
+                one_off=True
+            )
 
+        log_user_action(
+            self.request.user,
+            f"Editó fecha {fecha.id} de convocatoria '{fecha.convocatoria.nombre}'",
+            self.request
+        )
     def perform_destroy(self, instance):
         log_user_action(self.request.user, f"Eliminó fecha {instance.id} de convocatoria '{instance.convocatoria.nombre}'", self.request)
         super().perform_destroy(instance)
