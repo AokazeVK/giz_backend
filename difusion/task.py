@@ -1,5 +1,5 @@
 from celery import shared_task
-from django.utils import timezone
+from django.conf import settings # Importar settings
 from .models import FechaConvocatoria, Encargado, ArchivoFechaConvocatoria
 from .serializers import ArchivoFechaConvocatoriaSerializer
 from .utils import send_email_notification
@@ -8,15 +8,22 @@ from .utils import send_email_notification
 def enviar_convocatoria_email(fecha_id):
     try:
         fecha_convocatoria = FechaConvocatoria.objects.get(id=fecha_id)
-
         encargados = Encargado.objects.filter(is_active=True)
+
         if not encargados.exists():
-            return f"No hay encargados para notificar."
+            return "No hay encargados para notificar."
 
         recipient_list = [encargado.correo for encargado in encargados]
-
         archivos_qs = ArchivoFechaConvocatoria.objects.filter(fecha_convocatoria=fecha_convocatoria)
-        archivos_data = ArchivoFechaConvocatoriaSerializer(archivos_qs, many=True, context={"request": None}).data
+
+        # Aquí solo debe ir el código corregido.
+        base_url = settings.SITE_URL if hasattr(settings, 'SITE_URL') else 'http://localhost:8000/'
+
+        archivos_data = ArchivoFechaConvocatoriaSerializer(
+            archivos_qs,
+            many=True,
+            context={"base_url": base_url}
+        ).data
 
         context = {
             "convocatoria": fecha_convocatoria.convocatoria,
@@ -26,8 +33,8 @@ def enviar_convocatoria_email(fecha_id):
         }
 
         subject = f"Inicio Convocatoria: {fecha_convocatoria.convocatoria.nombre}"
-        send_email_notification(subject, "emails/convocatoria_notification.html", context, recipient_list)
 
+        send_email_notification(subject, "emails/convocatoria_notification.html", context, recipient_list)
         return f"Correo enviado para convocatoria {fecha_convocatoria.convocatoria.nombre}"
 
     except FechaConvocatoria.DoesNotExist:

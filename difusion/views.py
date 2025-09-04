@@ -3,6 +3,8 @@ from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from django_celery_beat.models import IntervalSchedule, PeriodicTask
 
 # Django y librerías de terceros
 from django.db.models import Prefetch
@@ -156,6 +158,7 @@ class ConvocatoriaViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 # --- Vista para Fechas de Convocatoria ---
+# --- Vista para Fechas de Convocatoria ---
 class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
     queryset = FechaConvocatoria.objects.all().order_by("id")
     serializer_class = FechaConvocatoriaSerializer
@@ -173,26 +176,46 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
     }
 
     def perform_create(self, serializer):
+        # Obtener la gestión de la cookie
         gestion = self.request.COOKIES.get("gestion")
         if not gestion:
             raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
-        
-        fecha = serializer.save(gestion=gestion)
-        fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
 
-        # La creación de la tarea debe estar dentro de la condición
-        if fecha_hora_completa > datetime.now(): 
-            clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
-            
+        #Guardar la fecha
+        fecha = serializer.save(gestion=gestion)
+
+        # Combinar fecha y hora y hacer timezone aware
+        fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
+        fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
+
+        # --- Crear tarea Clocked para fecha futura ---
+        if fecha_hora_completa > timezone.now():
+            clocked, _  = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
             PeriodicTask.objects.create(
                 clocked=clocked,
                 name=f"Notificación convocatoria {fecha.id}",
-                task="difusion.tasks.enviar_convocatoria_email",
+                task="difusion.task.enviar_convocatoria_email",
                 args=json.dumps([fecha.id]),
                 one_off=True
             )
-        
-        log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})", self.request)
+
+        # --- Opcional: tarea de prueba para verificar Celery funcionando ---
+        # Descomenta si quieres probar inmediatamente
+        # schedule,  = IntervalSchedule.objects.get_or_create(every=1, period=IntervalSchedule.MINUTES)
+        # PeriodicTask.objects.create(
+        #     interval=schedule,
+        #     name=f"Test enviar convocatoria {fecha.id}",
+        #     task="difusion.tasks.enviar_convocatoria_email",
+        #     args=json.dumps([fecha.id]),
+        #     one_off=True
+        # )
+
+        # Log de acción de usuario
+        log_user_action(
+            self.request.user,
+            f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})",
+            self.request
+    )
 
     def perform_update(self, serializer):
         fecha = serializer.save()
@@ -239,7 +262,6 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
                 return Response({"error": "No se pudo enviar la notificación por correo."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response({"error": f"Ocurrió un error: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 # --- Vista para Archivos de Convocatoria ---
 class ArchivoFechaConvocatoriaViewSet(viewsets.ModelViewSet):
     queryset = ArchivoFechaConvocatoria.objects.all().order_by("id")
