@@ -158,7 +158,6 @@ class ConvocatoriaViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 # --- Vista para Fechas de Convocatoria ---
-# --- Vista para Fechas de Convocatoria ---
 class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
     queryset = FechaConvocatoria.objects.all().order_by("id")
     serializer_class = FechaConvocatoriaSerializer
@@ -181,44 +180,49 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
         if not gestion:
             raise serializers.ValidationError({"gestion": "Cookie 'gestion' requerida para crear fecha"})
 
-        #Guardar la fecha
         fecha = serializer.save(gestion=gestion)
 
-        # Combinar fecha y hora y hacer timezone aware
         fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
         fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
 
-        # --- Crear tarea Clocked para fecha futura ---
         if fecha_hora_completa > timezone.now():
-            clocked, _  = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
-            PeriodicTask.objects.create(
+            clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
+            task = PeriodicTask.objects.create(
                 clocked=clocked,
                 name=f"Notificación convocatoria {fecha.id}",
                 task="difusion.task.enviar_convocatoria_email",
                 args=json.dumps([fecha.id]),
                 one_off=True
             )
+            fecha.periodic_task = task
+            fecha.save()
 
-        # --- Opcional: tarea de prueba para verificar Celery funcionando ---
-        # Descomenta si quieres probar inmediatamente
-        # schedule,  = IntervalSchedule.objects.get_or_create(every=1, period=IntervalSchedule.MINUTES)
-        # PeriodicTask.objects.create(
-        #     interval=schedule,
-        #     name=f"Test enviar convocatoria {fecha.id}",
-        #     task="difusion.tasks.enviar_convocatoria_email",
-        #     args=json.dumps([fecha.id]),
-        #     one_off=True
-        # )
-
-        # Log de acción de usuario
-        log_user_action(
-            self.request.user,
-            f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}' (gestion={fecha.gestion})",
-            self.request
-    )
+        log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}'", self.request)
 
     def perform_update(self, serializer):
         fecha = serializer.save()
+
+        # Si tenía tarea asociada → eliminarla
+        if fecha.periodic_task:
+            fecha.periodic_task.delete()
+            fecha.periodic_task = None
+
+        # Reprogramar nueva si sigue activa
+        if fecha.is_active:
+            fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
+            fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
+            if fecha_hora_completa > timezone.now():
+                clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
+                task = PeriodicTask.objects.create(
+                    clocked=clocked,
+                    name=f"Notificación convocatoria {fecha.id}",
+                    task="difusion.task.enviar_convocatoria_email",
+                    args=json.dumps([fecha.id]),
+                    one_off=True
+                )
+                fecha.periodic_task = task
+                fecha.save()
+
         log_user_action(self.request.user, f"Editó fecha {fecha.id} de convocatoria '{fecha.convocatoria.nombre}'", self.request)
 
     def perform_destroy(self, instance):
@@ -230,6 +234,29 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
         fecha = self.get_object()
         fecha.is_active = not fecha.is_active
         fecha.save()
+
+        if not fecha.is_active:
+            # Si se desactiva → borrar la tarea
+            if fecha.periodic_task:
+                fecha.periodic_task.delete()
+                fecha.periodic_task = None
+                fecha.save()
+        else:
+            # Si se reactiva → volver a programar la tarea
+            fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
+            fecha_hora_completa = timezone.make_aware(fecha_hora_completa, timezone.get_current_timezone())
+            if fecha_hora_completa > timezone.now():
+                clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
+                task = PeriodicTask.objects.create(
+                    clocked=clocked,
+                    name=f"Notificación convocatoria {fecha.id}",
+                    task="difusion.task.enviar_convocatoria_email",
+                    args=json.dumps([fecha.id]),
+                    one_off=True
+                )
+                fecha.periodic_task = task
+                fecha.save()
+
         status_message = "activo" if fecha.is_active else "inactivo"
         log_user_action(request.user, f"Cambió estado de fecha {fecha.id} a '{status_message}'", request)
         return Response({"message": f"Fecha {fecha.id} ahora está {status_message}."})

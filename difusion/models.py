@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import time
 from auditlog.registry import auditlog
-
+from django_celery_beat.models import PeriodicTask
 
 
 class Ministerio(models.Model):
@@ -47,6 +47,10 @@ class FechaConvocatoria(models.Model):
     gestion = models.CharField(max_length=10)  # ej "2025"
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    periodic_task = models.OneToOneField(
+        PeriodicTask, null=True, blank=True, on_delete=models.SET_NULL, related_name="fecha_convocatoria"
+    )
 
     class Meta:
         ordering = ["id"]
