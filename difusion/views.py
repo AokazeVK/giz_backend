@@ -200,31 +200,48 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
         log_user_action(self.request.user, f"Creó fecha {fecha.id} para convocatoria '{fecha.convocatoria.nombre}'", self.request)
 
     def perform_update(self, serializer):
-        fecha = serializer.save()
+            fecha = serializer.save()
 
-        if fecha.fecha_inicio > datetime.now().date():
-            clocked, _ = ClockedSchedule.objects.get_or_create(
-                clocked_time=datetime.combine(fecha.fecha_inicio, time())
+            # Combina la fecha y la hora para obtener un objeto datetime con zona horaria
+            fecha_hora_completa = datetime.combine(fecha.fecha_inicio, fecha.hora_inicio)
+            fecha_hora_completa = timezone.make_aware(fecha_hora_completa)
+
+            # Si la nueva fecha es en el futuro, reprograma la tarea.
+            if fecha_hora_completa > timezone.now():
+                
+                # Intenta encontrar y eliminar la tarea periódica anterior.
+                try:
+                    # Usa `fecha.periodic_task_id` para encontrar la tarea más eficientemente
+                    old_task = PeriodicTask.objects.get(name=f"Notificación convocatoria {fecha.id}")
+                    old_task.delete()
+                except PeriodicTask.DoesNotExist:
+                    # Esto es normal si la tarea anterior ya fue ejecutada o eliminada
+                    pass
+
+                # Crea la nueva agenda (ClockedSchedule) y la tarea periódica
+                clocked, _ = ClockedSchedule.objects.get_or_create(clocked_time=fecha_hora_completa)
+                
+                new_task = PeriodicTask.objects.create(
+                    clocked=clocked,
+                    name=f"Notificación convocatoria {fecha.id}",
+                    task="difusion.task.enviar_convocatoria_email",
+                    args=json.dumps([fecha.id]),
+                    one_off=True
+                )
+                
+                # Asocia la nueva tarea al modelo, si tienes el campo `periodic_task`
+                # Si no lo tienes, puedes omitir estas dos líneas
+                # fecha.periodic_task = new_task
+                # fecha.save()
+            else:
+                # Si la nueva fecha es en el pasado, elimina la tarea periódica.
+                PeriodicTask.objects.filter(name=f"Notificación convocatoria {fecha.id}").delete()
+            
+            log_user_action(
+                self.request.user,
+                f"Editó fecha {fecha.id} de convocatoria '{fecha.convocatoria.nombre}'",
+                self.request
             )
-
-            # Eliminar cualquier tarea previa con ese nombre
-            PeriodicTask.objects.filter(
-                name=f"Notificación convocatoria {fecha.id}"
-            ).delete()
-
-            PeriodicTask.objects.create(
-                clocked=clocked,
-                name=f"Notificación convocatoria {fecha.id}",
-                task="difusion.tasks.enviar_convocatoria_email",
-                args=json.dumps([fecha.id]),
-                one_off=True
-            )
-
-        log_user_action(
-            self.request.user,
-            f"Editó fecha {fecha.id} de convocatoria '{fecha.convocatoria.nombre}'",
-            self.request
-        )
     def perform_destroy(self, instance):
         log_user_action(self.request.user, f"Eliminó fecha {instance.id} de convocatoria '{instance.convocatoria.nombre}'", self.request)
         super().perform_destroy(instance)
