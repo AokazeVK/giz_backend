@@ -44,7 +44,8 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     role = models.ForeignKey(Role, null=True, blank=True, on_delete=models.SET_NULL)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
-
+    is_online = models.BooleanField(default=False)
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 

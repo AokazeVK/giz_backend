@@ -129,6 +129,7 @@ def profile_view(request):
     return Response({
         "username": user.username,
         "email": user.email,
+        "id": user.id,
         "avatar": avatar_url,  #
         "role": role_data,
         "gestion": gestion
