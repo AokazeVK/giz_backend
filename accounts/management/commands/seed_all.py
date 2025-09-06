@@ -89,6 +89,51 @@ TREE = {
                 {"label": "Aumentar Visualizaciones", "code": "aumentar_visualizaciones_curso"},
             ]
         },
+{
+            "label": "Empresas", "code": "empresas", "children": [
+                {"label": "Ver Empresas", "code": "ver_empresas"},
+                {"label": "Crear Empresas", "code": "crear_empresas"},
+                {"label": "Editar Empresas", "code": "editar_empresas"},
+                {"label": "Eliminar Empresas", "code": "eliminar_empresas"},
+            ]
+        },
+
+        {
+            "label": "Sello", "code": "sello", "children": [
+                {
+                    "label": "Tipos de Sello", "code": "tipos_sello", "children": [
+                        {"label": "Listar Tipos de Sello", "code": "listar_tipos_sello"},
+                        {"label": "Crear Tipos de Sello", "code": "crear_tipos_sello"},
+                        {"label": "Editar Tipos de Sello", "code": "editar_tipos_sello"},
+                        {"label": "Eliminar Tipos de Sello", "code": "eliminar_tipos_sello"},
+                    ]
+                },
+                {
+                    "label": "Requisitos", "code": "requisitos", "children": [
+                        {"label": "Listar Requisitos", "code": "listar_requisitos"},
+                        {"label": "Crear Requisitos", "code": "crear_requisitos"},
+                        {"label": "Editar Requisitos", "code": "editar_requisitos"},
+                        {"label": "Eliminar Requisitos", "code": "eliminar_requisitos"},
+                    ]
+                },
+                {
+                    "label": "Checklist de Evaluación", "code": "checklist", "children": [
+                        {"label": "Listar Checklist", "code": "listar_checklist_evaluacion"},
+                        {"label": "Crear Checklist", "code": "crear_checklist_evaluacion"},
+                        {"label": "Editar Checklist", "code": "editar_checklist_evaluacion"},
+                        {"label": "Eliminar Checklist", "code": "eliminar_checklist_evaluacion"},
+                    ]
+                },
+                {
+                    "label": "Evaluaciones", "code": "evaluaciones", "children": [
+                        {"label": "Listar Evaluaciones", "code": "listar_evaluaciones"},
+                        {"label": "Crear Evaluaciones", "code": "crear_evaluaciones"},
+                        {"label": "Editar Evaluaciones", "code": "editar_evaluaciones"},
+                        {"label": "Eliminar Evaluaciones", "code": "eliminar_evaluaciones"},
+                    ]
+                },
+            ]
+        },
     ]
 }
 

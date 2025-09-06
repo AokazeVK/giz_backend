@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     'accounts',
     'difusion',
     'cursos',
+    'preparacion',
+    'requisitos',
 ]
 
 # ======================

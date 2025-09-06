@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notificación de Asignación de Evaluación</title>
+</head>
+<body>
+    <p>Hola, {{ user_name }},</p>
+    
+    <p>Se te ha asignado como evaluador(a) en una nueva evaluación del **Sistema de Gestión de Sellos**. A continuación, se detallan los datos de la evaluación:</p>
+    
+    <ul>
+        <li><strong>Tipo de Sello:</strong> {{ tiposello_nombre }}</li>
+        <li><strong>Gestión:</strong> {{ evaluacion.gestion }}</li>
+        <li><strong>Fecha de Inicio:</strong> {{ evaluacion.fecha_inicio }}</li>
+        <li><strong>Fecha de Fin:</strong> {{ evaluacion.fecha_fin }}</li>
+        <li><strong>Estado:</strong> {{ evaluacion.get_estado_display }}</li>
+    </ul>
+    
+    <p>Puedes acceder a la plataforma para ver los detalles completos y comenzar el proceso de evaluación.</p>
+    
+    <p>Atentamente,</p>
+    <p>El equipo del Sistema de Gestión</p>
+</body>
+</html>

@@ -243,6 +243,15 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
                 self.request
             )
     def perform_destroy(self, instance):
+        if instance.periodic_task:
+            instance.periodic_task.delete()
+            log_user_action(
+                self.request.user, 
+                f"Eliminó la tarea programada '{instance.periodic_task.name}'", 
+                self.request
+            )
+        
+        # Luego, elimina la instancia de FechaConvocatoria.
         log_user_action(self.request.user, f"Eliminó fecha {instance.id} de convocatoria '{instance.convocatoria.nombre}'", self.request)
         super().perform_destroy(instance)
 
