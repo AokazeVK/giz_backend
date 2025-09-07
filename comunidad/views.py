@@ -48,12 +48,22 @@ class PostViewSet(viewsets.ModelViewSet):
             # Send real-time update
             channel_layer = get_channel_layer()
             async_to_sync(channel_layer.group_send)(
-                'posts_updates',
+                "posts_updates",
                 {
-                    'type': 'comment_update',
-                    'action': 'created',
-                    'comment': CommentSerializer(comment).data
-                }
+                    "type": "comment_update",
+                    "action": "created",
+                    "comment": {
+                        "id": comment.id,
+                        "content": comment.content,
+                        "created_at": comment.created_at.isoformat(),
+                        "post": post.id,
+                        "author": {
+                            "id": comment.author.id,
+                            "username": comment.author.username,
+                            "avatar": comment.author.avatar.url if comment.author.avatar else None,
+                        },
+                    },
+                },
             )
 
             return Response(CommentSerializer(comment).data, status=status.HTTP_201_CREATED)

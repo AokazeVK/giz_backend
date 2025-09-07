@@ -56,6 +56,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def handle_typing(self, data):
         user = self.scope["user"]
         is_typing = data.get("is_typing", False)
+        print(is_typing)
 
         await self.channel_layer.group_send(
             self.room_group_name,
