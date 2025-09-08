@@ -49,7 +49,9 @@ class User(AbstractUser):
             null=True, blank=True,
             on_delete=models.SET_NULL,
             related_name="usuarios"
-        )
+        )    
+    is_online = models.BooleanField(default=False)
+    
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
