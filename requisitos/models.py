@@ -107,6 +107,7 @@ class EvaluacionFases(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     gestion = models.CharField(max_length=4)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

@@ -84,8 +84,8 @@ class EvaluacionFasesSerializer(serializers.ModelSerializer):
     class Meta:
         model = EvaluacionFases
         # 'evaluacion' ahora puede ser escrito. 'gestion' sigue siendo solo de lectura
-        fields = ["id", "nombre", "fecha_inicio", "fecha_fin", "evaluacion", "gestion", "checklists", "checklist_ids"]
-        read_only_fields = ["id", "gestion"]
+        fields = ["id", "nombre", "fecha_inicio", "fecha_fin", "evaluacion", "gestion", "is_active", "checklists", "checklist_ids"]
+        read_only_fields = ["id", "gestion", "is_active"]
         
     def create(self, validated_data):
         checklist_ids = validated_data.pop("checklist_ids", [])
