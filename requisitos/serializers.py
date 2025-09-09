@@ -10,7 +10,7 @@ class RequisitoInputSerializer(serializers.ModelSerializer):
         model = RequisitoInput
         # Agrega el campo 'is_active'
         fields = ["id", "label", "input_type", "is_required", "is_active", "requisito"]
-        read_only_fields = ["id", "requisito"]
+        read_only_fields = ["id"]
 
 
 # Serializador para Requisitos
@@ -69,7 +69,6 @@ class ChecklistEvaluacionSerializer(serializers.ModelSerializer):
         model = ChecklistEvaluacion
         # Agrega 'is_active' y el nuevo campo de relación
         fields = ["id", "nombre", "descripcion", "porcentaje", "is_active", "evaluacion_fase"]
-        read_only_fields = ["evaluacion_fase"] # Para que el front no tenga que pasarlo
 
 
 # Serializador para las Fases de la Evaluación
@@ -84,12 +83,13 @@ class EvaluacionFasesSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = EvaluacionFases
-        # El campo 'evaluacion' se gestiona en la vista, no se necesita aquí
-        fields = ["id", "nombre", "fecha_inicio", "fecha_fin", "gestion", "checklists", "checklist_ids"]
-        read_only_fields = ["id", "evaluacion", "gestion"] # Gestion es de la evaluacion principal
+        # 'evaluacion' ahora puede ser escrito. 'gestion' sigue siendo solo de lectura
+        fields = ["id", "nombre", "fecha_inicio", "fecha_fin", "evaluacion", "gestion", "checklists", "checklist_ids"]
+        read_only_fields = ["id", "gestion"]
         
     def create(self, validated_data):
         checklist_ids = validated_data.pop("checklist_ids", [])
+        # 'evaluacion' se recibe del request y se usa para crear la fase
         evaluacion_fase = EvaluacionFases.objects.create(**validated_data)
         if checklist_ids:
             for checklist in ChecklistEvaluacion.objects.filter(id__in=checklist_ids):

@@ -139,8 +139,6 @@ class RequisitoInputViewSet(viewsets.ModelViewSet):
         return Response({"message": f"El estado del RequisitoInput ha sido cambiado a {requisito_input.isActive}."}, status=status.HTTP_200_OK)
     
         
-
-
 class ChecklistEvaluacionViewSet(viewsets.ModelViewSet):
     # El serializador ya maneja la relación
     queryset = ChecklistEvaluacion.objects.all()
@@ -198,7 +196,18 @@ class EvaluacionFasesViewSet(viewsets.ModelViewSet):
     }
     
     def perform_create(self, serializer):
-        fase = serializer.save()
+        # Obtiene el ID de la evaluación del validated_data
+        evaluacion_id = serializer.validated_data.get('evaluacion').id
+        
+        # Filtra la evaluación para obtener el campo 'gestion'
+        try:
+            evaluacion = Evaluacion.objects.get(id=evaluacion_id)
+            gestion = evaluacion.gestion
+        except Evaluacion.DoesNotExist:
+            return Response({"error": "La evaluación proporcionada no existe."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Asigna la gestión a la instancia de la fase antes de guardar
+        fase = serializer.save(gestion=gestion)
         log_user_action(self.request.user, f"Creó una fase: {fase.nombre}", self.request)
     
     def perform_update(self, serializer):
@@ -274,7 +283,6 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
         log_user_action(self.request.user, f"Eliminó Evaluación para: {instance.tipoSello.nombre} en gestión {instance.gestion}", self.request)
         super().perform_destroy(instance)
     
-  
     @action(detail=True, methods=["post"], url_path="cambiar-estado")
     def cambiar_estado(self, request, pk=None):
         evaluacion = self.get_object()
