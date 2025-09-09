@@ -1,17 +1,31 @@
 from rest_framework import serializers
 from .models import Empresa
 from accounts.models import User
+from requisitos.models import TipoSello
+from requisitos.serializers import TipoSelloSerializer
 
 class EmpresaSerializer(serializers.ModelSerializer):
+    # Campo para la escritura de usuarios
     usuarios = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
         many=True,
         required=False,
         write_only=True
     )
-    # Este campo es para mostrar los usuarios, pero ahora usa el related_name
+    # Campo para mostrar los nombres de los usuarios en la respuesta
     usuarios_relacionados = serializers.StringRelatedField(many=True, read_only=True, source='usuarios')
     
+    # Campo para mostrar el objeto completo del tipo de sello (solo lectura)
+    tipoSello = TipoSelloSerializer(read_only=True)
+    # Campo para la escritura (escribir el ID del tipo de sello)
+    tipoSello_id = serializers.PrimaryKeyRelatedField(
+        queryset=TipoSello.objects.all(),
+        source='tipoSello',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = Empresa
         fields = [
@@ -22,12 +36,15 @@ class EmpresaSerializer(serializers.ModelSerializer):
             "tipo",
             "direccion",
             "is_active",
-            "usuarios", # Campo para la escritura
-            "usuarios_relacionados", # Campo para la lectura
+            "isAproved", # Nuevo campo
+            "tipoSello", # Campo de lectura (objeto anidado)
+            "tipoSello_id", # Campo de escritura (ID)
+            "usuarios",
+            "usuarios_relacionados",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "tipoSello"]
 
     def create(self, validated_data):
         usuarios = validated_data.pop("usuarios", [])
@@ -41,18 +58,15 @@ class EmpresaSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         usuarios_nuevos = validated_data.pop("usuarios", None)
         
-        # Primero, actualiza los campos básicos de la empresa
         instance = super().update(instance, validated_data)
 
         if usuarios_nuevos is not None:
-            # Desasocia a los usuarios que ya no pertenecen a la empresa
             usuarios_actuales = instance.usuarios.all()
             usuarios_a_remover = [u for u in usuarios_actuales if u not in usuarios_nuevos]
             for user in usuarios_a_remover:
                 user.empresa = None
                 user.save()
 
-            # Asocia a los nuevos usuarios a la empresa
             for user in usuarios_nuevos:
                 if user.empresa != instance:
                     user.empresa = instance

@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "comunidad",
     'preparacion',
     'requisitos',
+    'reconocimiento',
 ]
 
 # ======================

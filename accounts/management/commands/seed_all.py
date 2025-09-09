@@ -1,4 +1,3 @@
-# apps/accounts/management/commands/seed_all.py
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -47,7 +46,7 @@ TREE = {
                         {"label": "Editar Encargados", "code": "editar_encargados"},
                         {"label": "Eliminar Encargados", "code": "eliminar_encargados"},
                         {"label": "Listar Encargados", "code": "listar_encargados"},
-                        {"label": "Toggle Encargados", "code": "toggle_estado_encargado"}, # Recomiendo cambiar este code para evitar conflictos
+                        {"label": "Toggle Encargados", "code": "toggle_estado_encargado"},
                         {"label": "Listar Encargados por Ministerio", "code": "listar_encargados_por_ministerio"},
                     ]
                 },
@@ -57,7 +56,7 @@ TREE = {
                         {"label": "Editar Convocatorias", "code": "editar_convocatorias"},
                         {"label": "Eliminar Convocatorias", "code": "eliminar_convocatorias"},
                         {"label": "Listar Convocatorias", "code": "listar_convocatorias"},
-                        {"label": "Toggle Convocatoria", "code": "toggle_estado_convocatoria"}, 
+                        {"label": "Toggle Convocatoria", "code": "toggle_estado_convocatoria"},
                     ]
                 },
                 {
@@ -66,7 +65,7 @@ TREE = {
                         {"label": "Editar Fechas Convocatoria", "code": "editar_fechas_convocatorias"},
                         {"label": "Eliminar Fechas Convocatoria", "code": "eliminar_fechas_convocatorias"},
                         {"label": "Listar Fechas Convocatoria", "code": "listar_fechas_convocatorias"},
-                        {"label": "Toggle Fecha Convocatoria", "code": "toggle_estado_fecha_convocatoria"}, 
+                        {"label": "Toggle Fecha Convocatoria", "code": "toggle_estado_fecha_convocatoria"},
                     ]
                 },
                 {
@@ -89,7 +88,12 @@ TREE = {
                 {"label": "Aumentar Visualizaciones", "code": "aumentar_visualizaciones_curso"},
             ]
         },
-{
+        {
+            "label": "Dashboard", "code": "dashboard", "children": [
+                {"label": "Listar Dashboard", "code": "listar_dashboard"},
+            ]
+        },
+        {
             "label": "Empresas", "code": "empresas", "children": [
                 {"label": "Ver Empresas", "code": "ver_empresas"},
                 {"label": "Crear Empresas", "code": "crear_empresas"},
@@ -97,7 +101,6 @@ TREE = {
                 {"label": "Eliminar Empresas", "code": "eliminar_empresas"},
             ]
         },
-
         {
             "label": "Sello", "code": "sello", "children": [
                 {
@@ -117,11 +120,21 @@ TREE = {
                     ]
                 },
                 {
+                    "label": "Requisito Input", "code": "requisito_input", "children": [
+                        {"label": "Listar Requisito Input", "code": "listar_requisitos_input"},
+                        {"label": "Crear Requisito Input", "code": "crear_requisitos_input"},
+                        {"label": "Editar Requisito Input", "code": "editar_requisitos_input"},
+                        {"label": "Eliminar Requisito Input", "code": "eliminar_requisitos_input"},
+                        {"label": "Alternar Requisito Input", "code": "editar_requisitos_input"},
+                    ]
+                },
+                {
                     "label": "Checklist de Evaluación", "code": "checklist", "children": [
                         {"label": "Listar Checklist", "code": "listar_checklist_evaluacion"},
                         {"label": "Crear Checklist", "code": "crear_checklist_evaluacion"},
                         {"label": "Editar Checklist", "code": "editar_checklist_evaluacion"},
                         {"label": "Eliminar Checklist", "code": "eliminar_checklist_evaluacion"},
+                        {"label": "Alternar Checklist", "code": "editar_checklist_evaluacion"},
                     ]
                 },
                 {
@@ -130,8 +143,18 @@ TREE = {
                         {"label": "Crear Evaluaciones", "code": "crear_evaluaciones"},
                         {"label": "Editar Evaluaciones", "code": "editar_evaluaciones"},
                         {"label": "Eliminar Evaluaciones", "code": "eliminar_evaluaciones"},
+                        {"label": "Cambiar Estado de Evaluación", "code": "editar_evaluaciones"},
                     ]
                 },
+                {
+                    "label": "Fases de Evaluación", "code": "fases_evaluacion", "children": [
+                        {"label": "Listar Fases de Evaluación", "code": "listar_fases_evaluacion"},
+                        {"label": "Crear Fases de Evaluación", "code": "crear_fases_evaluacion"},
+                        {"label": "Editar Fases de Evaluación", "code": "editar_fases_evaluacion"},
+                        {"label": "Eliminar Fases de Evaluación", "code": "eliminar_fases_evaluacion"},
+                        {"label": "Alternar Fases de Evaluación", "code": "editar_fases_evaluacion"},
+                    ]
+                }
             ]
         },
     ]
