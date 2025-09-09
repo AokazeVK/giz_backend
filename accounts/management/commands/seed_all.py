@@ -157,6 +157,19 @@ TREE = {
                 }
             ]
         },
+        # NUEVA SECCIÓN DE RECONOCIMIENTO
+        {
+            "label": "Reconocimiento", "code": "reconocimiento", "children": [
+                {
+                    "label": "Eventos", "code": "eventos", "children": [
+                        {"label": "Listar Eventos", "code": "listar_eventos"},
+                        {"label": "Crear Eventos", "code": "crear_eventos"},
+                        {"label": "Editar Eventos", "code": "editar_eventos"},
+                        {"label": "Eliminar Eventos", "code": "eliminar_eventos"},
+                    ]
+                }
+            ]
+        },
     ]
 }
 

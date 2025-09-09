@@ -41,7 +41,6 @@ class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = ("id", "name", "description", "permissions", "permission_codes", "is_active")
-        read_only_fields = ("is_active")
     def create(self, validated_data):
         """
         Crea un nuevo rol y asigna permisos desde 'permission_codes'.
@@ -77,7 +76,6 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "email", "role", "role_name", "is_active", "password", "confirm_password", "avatar")
-        read_only_fields = ("is_active")
     def validate(self, data):
         """
         Valida que las contraseñas coincidan si se proporcionan.
