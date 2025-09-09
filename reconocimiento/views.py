@@ -4,13 +4,14 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Evento
 from .serializers import EventoSerializer
 from .task import enviar_evento_email, enviar_evento_actualizado_email
+from rest_framework.permissions import AllowAny
 from accounts.permissions import HasPermissionMap
 from accounts.utils import log_user_action
 
 class EventoViewSet(viewsets.ModelViewSet):
     queryset = Evento.objects.all()
     serializer_class = EventoSerializer
-    permission_classes = [IsAuthenticated, HasPermissionMap]
+    permission_classes = [AllowAny]
     
     permission_code_map = {
         "list": "listar_eventos",

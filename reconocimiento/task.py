@@ -43,7 +43,7 @@ def enviar_evento_email(evento_id):
                 f"Nombre del Evento: {evento.nombre}\n"
                 f"Descripción: {evento.descripcion}\n"
                 f"Lugar: {evento.lugar}\n"
-                f"Fecha y Hora: {evento.fecha_hora.strftime('%d/%m/%Y %H:%M')}\n\n"
+                f"Fecha y Hora: {evento.fecha}\n\n"
             )
             
             if usuario.email:

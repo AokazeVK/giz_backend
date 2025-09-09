@@ -1,44 +1,90 @@
 <!DOCTYPE html>
 
 <html>
+
 <head>
-<style>
-body { font-family: sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
-.container { max-width: 600px; margin: 20px auto; background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-.header { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
-.header h1 { color: #2c3e50; }
-.content { color: #34495e; line-height: 1.6; }
-.details { background-color: #ecf0f1; padding: 15px; border-radius: 6px; margin-top: 20px; }
-.details p { margin: 5px 0; }
-.footer { text-align: center; margin-top: 20px; font-size: 12px; color: #7f8c8d; }
-</style>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+        }
+
+        .content {
+            color: #34495e;
+            line-height: 1.6;
+        }
+
+        .details {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .details p {
+            margin: 5px 0;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+    </style>
 </head>
+
 <body>
-<div class="container">
-<div class="header">
-<h1>{{ subject }}</h1>
-</div>
-<div class="content">
-<p>Estimado(a) representante de la empresa <strong>{{ empresa.nombre }}</strong>,</p>
-<p>
-{{ intro_message }}
-</p>
-<p>Detalles del evento:</p>
-<div class="details">
-<p><strong>Nombre del Evento:</strong> {{ evento.nombre }}</p>
-<p><strong>Descripción:</strong> {{ evento.descripcion }}</p>
-<p><strong>Lugar:</strong> {{ evento.lugar }}</p>
-<p><strong>Fecha y Hora:</strong> {{ evento.fecha_hora|date:"d/m/Y H:i" }}</p>
-</div>
-{% if empresa.tipoSello %}
-<p style="margin-top: 20px;">Su empresa ha sido reconocida con el sello <strong>'{{ empresa.tipoSello.nombre }}'</strong>.</p>
-{% else %}
-<p style="margin-top: 20px;">Su empresa ha sido aprobada y reconocida.</p>
-{% endif %}
-</div>
-<div class="footer">
-<p>&copy; {{ year }} Nuestro Sistema. Todos los derechos reservados.</p>
-</div>
-</div>
+    <div class="container">
+        <div class="header">
+            <h1>{{ subject }}</h1>
+        </div>
+        <div class="content">
+            <p>Estimado(a) representante de la empresa <strong>{{ empresa.nombre }}</strong>,</p>
+            <p>
+                {{ intro_message }}
+            </p>
+            <p>Detalles del evento:</p>
+            <div class="details">
+                <p><strong>Nombre del Evento:</strong> {{ evento.nombre }}</p>
+                <p><strong>Descripción:</strong> {{ evento.descripcion }}</p>
+                <p><strong>Lugar:</strong> {{ evento.lugar }}</p>
+                <p><strong>Fecha</strong> {{ evento.fecha }}</p>
+                <p><strong>Hora</strong> {{ evento.hora }}</p>
+            </div>
+            {% if empresa.tipoSello %}
+            <p style="margin-top: 20px;">Su empresa ha sido reconocida con el sello <strong>'{{ empresa.tipoSello.nombre
+                    }}'</strong>.</p>
+            {% else %}
+            <p style="margin-top: 20px;">Su empresa ha sido aprobada y reconocida.</p>
+            {% endif %}
+        </div>
+        <div class="footer">
+            <p>&copy; {{ year }} Nuestro Sistema. Todos los derechos reservados.</p>
+        </div>
+    </div>
 </body>
+
 </html>

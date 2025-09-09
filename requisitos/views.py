@@ -133,10 +133,10 @@ class RequisitoInputViewSet(viewsets.ModelViewSet):
         Alterna el estado (activo/inactivo) de un RequisitoInput.
         """
         requisito_input = self.get_object()
-        requisito_input.isActive = not requisito_input.isActive
+        requisito_input.is_active = not requisito_input.is_active
         requisito_input.save()
-        log_user_action(self.request.user, f"Se alternó el estado de RequisitoInput con ID: {requisito_input.id} a {requisito_input.isActive}", self.request)
-        return Response({"message": f"El estado del RequisitoInput ha sido cambiado a {requisito_input.isActive}."}, status=status.HTTP_200_OK)
+        log_user_action(self.request.user, f"Se alternó el estado de RequisitoInput con ID: {requisito_input.id} a {requisito_input.is_active}", self.request)
+        return Response({"message": f"El estado del RequisitoInput ha sido cambiado a {requisito_input.is_active}."}, status=status.HTTP_200_OK)
     
         
 class ChecklistEvaluacionViewSet(viewsets.ModelViewSet):
@@ -173,10 +173,10 @@ class ChecklistEvaluacionViewSet(viewsets.ModelViewSet):
         Alterna el estado (activo/inactivo) de un Checklist de Evaluación.
         """
         checklist = self.get_object()
-        checklist.isActive = not checklist.isActive
+        checklist.is_active = not checklist.is_active
         checklist.save()
-        log_user_action(self.request.user, f"Se alternó el estado de Checklist con ID: {checklist.id} a {checklist.isActive}", self.request)
-        return Response({"message": f"El estado del Checklist ha sido cambiado a {checklist.isActive}."}, status=status.HTTP_200_OK)
+        log_user_action(self.request.user, f"Se alternó el estado de Checklist con ID: {checklist.id} a {checklist.is_active}", self.request)
+        return Response({"message": f"El estado del Checklist ha sido cambiado a {checklist.is_active}."}, status=status.HTTP_200_OK)
 
 
 # Nuevo ViewSet para las fases de evaluación
@@ -224,10 +224,10 @@ class EvaluacionFasesViewSet(viewsets.ModelViewSet):
         Alterna el estado (activo/inactivo) de una fase de evaluación.
         """
         fase = self.get_object()
-        fase.isActive = not fase.isActive
+        fase.is_active = not fase.is_active
         fase.save()
-        log_user_action(self.request.user, f"Se alternó el estado de la fase con ID: {fase.id} a {fase.isActive}", self.request)
-        return Response({"message": f"El estado de la fase ha sido cambiado a {fase.isActive}."}, status=status.HTTP_200_OK)
+        log_user_action(self.request.user, f"Se alternó el estado de la fase con ID: {fase.id} a {fase.is_active}", self.request)
+        return Response({"message": f"El estado de la fase ha sido cambiado a {fase.is_active}."}, status=status.HTTP_200_OK)
 
 class EvaluacionViewSet(viewsets.ModelViewSet):
     queryset = Evaluacion.objects.all().prefetch_related("evaluadores", "fases__checklists")
