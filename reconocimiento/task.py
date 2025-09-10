@@ -15,12 +15,12 @@ def enviar_evento_email(evento_id):
     """
     try:
         evento = Evento.objects.get(id=evento_id)
-        
+        base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
         # 👈 Obtener la URL absoluta de la imagen para el correo
         imagen_url = None
         if evento.imagen:
             current_site = Site.objects.get_current()
-            imagen_url = f"http://{current_site.domain}{evento.imagen.url}"
+            imagen_url = f"{base_url}{evento.imagen.url}"
 
         usuarios = User.objects.filter(
             empresa__isnull=False,
@@ -78,10 +78,12 @@ def enviar_evento_actualizado_email(evento_id, datos_antiguos):
         evento = Evento.objects.get(id=evento_id)
         
         # 👈 Obtener la URL absoluta de la imagen para el correo de actualización
+        base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        # 👈 Obtener la URL absoluta de la imagen para el correo
         imagen_url = None
         if evento.imagen:
             current_site = Site.objects.get_current()
-            imagen_url = f"http://{current_site.domain}{evento.imagen.url}"
+            imagen_url = f"{base_url}{evento.imagen.url}"
         
         usuarios = User.objects.filter(
             empresa__isnull=False,

@@ -1,6 +1,9 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from accounts.models import User
+from accounts.serializers import UserSerializer
 from .models import Empresa
 from .serializers import EmpresaSerializer
 from accounts.permissions import HasPermissionMap
@@ -11,7 +14,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
     queryset = Empresa.objects.all()
     serializer_class = EmpresaSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
-
+    
     permission_code_map = {
         "list": "ver_empresas",
         "retrieve": "ver_empresas",
@@ -35,15 +38,13 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         log_user_action(self.request.user, f"Eliminó la empresa {instance.nombre}")
         instance.delete()
 
-    @action(detail=True, methods=['get'], url_path='usuarios')
-    def listar_usuarios(self, request, pk=None):
+    @action(detail=False, methods=['get'], url_path='usuarios') #  Ajustado a detail=False
+    def listar_usuarios(self, request): #  Se eliminó pk=None
         """
-        Listar todos los usuarios asociados a esta empresa.
-        Usa el permiso 'ver_empresas' por ahora, se puede cambiar a propio.
+        Listar todos los usuarios del sistema.
         """
-        empresa = self.get_object()
-        usuarios = empresa.users.all()  # Asumiendo relación reverse 'users' desde User
-        from accounts.serializers import UserSerializer
+        # Cambiamos la consulta para obtener todos los usuarios, no solo los de una empresa
+        usuarios = User.objects.all()
         serializer = UserSerializer(usuarios, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     

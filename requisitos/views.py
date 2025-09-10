@@ -101,13 +101,12 @@ class RequisitoViewSet(viewsets.ModelViewSet):
         log_user_action(self.request.user, f"Eliminó Requisito con ID: {instance.id}", self.request)
         super().perform_destroy(instance)
 
-    @action(detail=True, methods=['get'], url_path='tipos-sello')
-    def listar_tipos_sello(self, request, pk=None):
+    @action(detail=False, methods=['get'], url_path='tipos-sello')
+    def listar_tipos_sello(self, request):
         """
-        Listar todos los tipos de sello disponibles para este requisito.
+        Listar todos los tipos de sello disponibles.
         """
-        requisito = self.get_object()
-        tipos_sello = requisito.tipos_sello.all()  # Asumiendo ManyToMany o FK
+        tipos_sello = TipoSello.objects.all()  #  Busca todos los objetos del modelo TipoSello
         from .serializers import TipoSelloSerializer
         serializer = TipoSelloSerializer(tipos_sello, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
