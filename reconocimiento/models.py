@@ -6,14 +6,11 @@ class Evento(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField()
     lugar = models.CharField(max_length=255)
-    
-    # Se cambian a campos separados para Fecha y Hora
     fecha = models.DateField()
     hora = models.TimeField()
-    
     is_active = models.BooleanField(default=True)
     imagen = models.ImageField(upload_to='eventos/', null=True, blank=True)
-    
+    gestion = models.CharField(max_length=50, null=True)  # 👈 nuevo campo para filtrar
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

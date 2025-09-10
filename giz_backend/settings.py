@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "daphne",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
     # Terceros
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
@@ -190,3 +191,5 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+SITE_ID = 1

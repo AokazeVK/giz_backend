@@ -12,11 +12,12 @@ from .serializers import (
     RequisitoInputSerializer,
     ChecklistEvaluacionSerializer, 
     EvaluacionSerializer,
-    EvaluacionFasesSerializer
+    EvaluacionFasesSerializer,
+    UserSerializer
 )
 from accounts.permissions import HasPermissionMap
 from accounts.utils import log_user_action
-
+from accounts.models import User
 # Importación de la tarea de Celery
 from .task import enviar_evaluacion_email
 
@@ -74,6 +75,7 @@ class RequisitoViewSet(viewsets.ModelViewSet):
         "update": "editar_requisitos",
         "partial_update": "editar_requisitos",
         "destroy": "eliminar_requisitos",
+        "listar_tipos_sello": "listar_requisitos",
     }
     
     def get_queryset(self):
@@ -98,6 +100,17 @@ class RequisitoViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         log_user_action(self.request.user, f"Eliminó Requisito con ID: {instance.id}", self.request)
         super().perform_destroy(instance)
+
+    @action(detail=True, methods=['get'], url_path='tipos-sello')
+    def listar_tipos_sello(self, request, pk=None):
+        """
+        Listar todos los tipos de sello disponibles para este requisito.
+        """
+        requisito = self.get_object()
+        tipos_sello = requisito.tipos_sello.all()  # Asumiendo ManyToMany o FK
+        from .serializers import TipoSelloSerializer
+        serializer = TipoSelloSerializer(tipos_sello, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class RequisitoInputViewSet(viewsets.ModelViewSet):
@@ -242,6 +255,8 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
         "partial_update": "editar_evaluaciones",
         "destroy": "eliminar_evaluaciones",
         "cambiar_estado": "editar_evaluaciones",
+        "listar_tipos_sello": "listar_evaluaciones",
+        "listar_evaluadores": "listar_evaluaciones",
     }
     
     def get_queryset(self):
@@ -282,6 +297,36 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         log_user_action(self.request.user, f"Eliminó Evaluación para: {instance.tipoSello.nombre} en gestión {instance.gestion}", self.request)
         super().perform_destroy(instance)
+
+    @action(detail=False, methods=["get"], url_path="evaluadores")
+    def listar_evaluadores(self, request):
+        """
+        Lista todos los usuarios con rol 'Evaluador'.
+        Se controla con el permiso 'listar_evaluaciones' (o 'listar_evaluaciones').
+        """
+        evaluadores = User.objects.filter(role__name="Evaluador", is_active=True)
+
+        serializer = UserSerializer(evaluadores, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], url_path="tipos-sello")
+    def listar_tipos_sello(self, request):
+        """
+        Lista todos los TipoSello con sus requisitos e inputs.
+        Usa el permiso listar_evaluaciones.
+        """
+        gestion = request.COOKIES.get("gestion")
+        if gestion:
+            evaluaciones_qs = Evaluacion.objects.filter(gestion=gestion).prefetch_related("evaluadores")
+            tipos_sello = TipoSello.objects.all().prefetch_related(
+                "requisitos__inputs",
+                Prefetch("evaluaciones", queryset=evaluaciones_qs)
+            )
+        else:
+            tipos_sello = TipoSello.objects.all().prefetch_related("requisitos__inputs", "evaluaciones__evaluadores")
+        
+        serializer = TipoSelloSerializer(tipos_sello, many=True, context=self.get_serializer_context())
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=["post"], url_path="cambiar-estado")
     def cambiar_estado(self, request, pk=None):

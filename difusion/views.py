@@ -298,12 +298,15 @@ class FechaConvocatoriaViewSet(viewsets.ModelViewSet):
             
             recipient_list = [encargado.correo for encargado in encargados]
             archivos_qs = ArchivoFechaConvocatoria.objects.filter(fecha_convocatoria=fecha_convocatoria)
+            
+            # --- Aquí está el ajuste clave:
+            # Pasa el 'request' al contexto para que el serializer pueda construir la URL completa
             archivos_data = ArchivoFechaConvocatoriaSerializer(archivos_qs, many=True, context={'request': request}).data
             
             context = {
                 'convocatoria': fecha_convocatoria.convocatoria,
                 'fecha_convocatoria': fecha_convocatoria,
-                'convocatoria_archivos': archivos_data,
+                'convocatoria_archivos': archivos_data, # Ahora con la URL completa
                 'encargado_nombre': 'Estimado(a) Encargado(a)',
             }
             subject = f"Nueva Convocatoria: {fecha_convocatoria.convocatoria.nombre}"

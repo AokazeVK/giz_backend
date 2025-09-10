@@ -53,6 +53,15 @@
             font-size: 12px;
             color: #7f8c8d;
         }
+        
+        /* 👈 Estilos para la imagen del evento */
+        .event-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 20px auto;
+            border-radius: 8px;
+        }
     </style>
 </head>
 
@@ -66,6 +75,11 @@
             <p>
                 {{ intro_message }}
             </p>
+            <!-- 👈 Mostramos la imagen del evento si existe -->
+            {% if imagen_url %}
+            <img class="event-image" src="{{ imagen_url }}" alt="Imagen del Evento: {{ evento.nombre }}">
+            {% endif %}
+
             <p>Detalles del evento:</p>
             <div class="details">
                 <p><strong>Nombre del Evento:</strong> {{ evento.nombre }}</p>

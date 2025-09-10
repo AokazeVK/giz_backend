@@ -111,7 +111,10 @@ class EvaluacionFasesSerializer(serializers.ModelSerializer):
 
 
 # Serializador para la Evaluación
+# Serializador para la Evaluación
 class EvaluacionSerializer(serializers.ModelSerializer):
+    # Nuevo campo para mostrar el nombre del tipo de sello
+    tipoSello_nombre = serializers.CharField(source='tipoSello.nombre', read_only=True)
     evaluadores = UserSerializer(many=True, read_only=True)
     evaluadores_ids = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role__name='Evaluador'),
@@ -126,11 +129,11 @@ class EvaluacionSerializer(serializers.ModelSerializer):
         model = Evaluacion
         # Agrega el campo 'is_active' y quita la relación directa con los checklists
         fields = [
-            "id", "tipoSello", "empresa", "fecha_inicio", "fecha_fin", "gestion", 
+            "id", "tipoSello", "tipoSello_nombre", "empresa", "fecha_inicio", "fecha_fin", "gestion", 
             "evaluadores", "evaluadores_ids", "estado", "is_active",
             "fases", "created_at", "updated_at"
         ]
-        read_only_fields = ["id", "estado", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "estado", "is_active", "created_at", "updated_at", "tipoSello_nombre"]
         
     def create(self, validated_data):
         evaluadores_ids = validated_data.pop("evaluadores_ids", [])

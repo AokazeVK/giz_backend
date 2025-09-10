@@ -16,8 +16,9 @@ def enviar_convocatoria_email(fecha_id):
         recipient_list = [encargado.correo for encargado in encargados]
         archivos_qs = ArchivoFechaConvocatoria.objects.filter(fecha_convocatoria=fecha_convocatoria)
 
-        # Aquí solo debe ir el código corregido.
-        base_url = settings.SITE_URL if hasattr(settings, 'SITE_URL') else 'http://localhost:8000/'
+        # Aquí está el ajuste clave para la tarea de Celery
+        # Usamos settings.SITE_URL para construir la URL base
+        base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
 
         archivos_data = ArchivoFechaConvocatoriaSerializer(
             archivos_qs,

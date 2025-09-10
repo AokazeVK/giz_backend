@@ -3,19 +3,126 @@
 <head>
     <meta charset="utf-8">
     <title>{{ convocatoria.nombre }}</title>
+    <style>
+        /* Estilos generales para el cuerpo del correo */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        /* Contenedor principal del correo */
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid #0056b3; /* Línea de color en la parte superior */
+        }
+        /* Encabezado del correo */
+        .header {
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+        /* Contenido principal */
+        .content {
+            padding: 20px;
+            color: #333333;
+        }
+        /* Estilos para la lista de archivos */
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        .file-item {
+            background-color: #f9f9f9;
+            border: 1px solid #eeeeee;
+            border-left: 5px solid #007bff;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-name {
+            font-weight: bold;
+            flex-grow: 1;
+        }
+        /* Estilos para el botón de descarga */
+        .download-button {
+            background-color: #28a745;
+            color: #ffffff !important;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .download-button:hover {
+            background-color: #218838;
+        }
+        /* Pie de página del correo */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #aaaaaa;
+            border-top: 1px solid #eeeeee;
+            margin-top: 20px;
+        }
+        /* Media query para móviles */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+            }
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .download-button {
+                margin-top: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h2>Hola {{ encargado_nombre }}</h2>
-    <p>Se ha publicado la convocatoria: <strong>{{ convocatoria.nombre }}</strong></p>
-    <p>{{ convocatoria.descripcion }}</p>
+    <div class="email-container">
+        <div class="header">
+            <h1 style="margin: 0; font-size: 24px;">Nueva Convocatoria</h1>
+        </div>
+        <div class="content">
+            <h2 style="color: #0056b3;">Hola {{ encargado_nombre }}</h2>
+            <p>Se ha publicado la convocatoria: <strong>{{ convocatoria.nombre }}</strong></p>
+            <p>{{ convocatoria.descripcion }}</p>
 
-    {% if convocatoria_archivos %}
-        <p>Archivos adjuntos:</p>
-        <ul>
-        {% for archivo in convocatoria_archivos %}
-            <li><a href="{{ archivo.archivo_url }}">{{ archivo.nombre }}</a></li>
-        {% endfor %}
-        </ul>
-    {% endif %}
+            {% if convocatoria_archivos %}
+                <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;">
+                <h3 style="margin-top: 0;">Archivos para descargar:</h3>
+                <ul class="file-list">
+                    {% for archivo in convocatoria_archivos %}
+                        <li class="file-item">
+                            <span class="file-name">{{ archivo.nombre }}</span>
+                            <a href="{{ archivo.url_file }}" class="download-button" target="_blank" rel="noopener noreferrer">
+                                Descargar
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="footer">
+            <p>Este es un correo automático. Por favor, no respondas a este mensaje.</p>
+        </div>
+    </div>
 </body>
 </html>

@@ -261,6 +261,7 @@ class UserViewSet(viewsets.ModelViewSet):
         "destroy": "eliminar_usuarios",
         "toggle_active_status": "editar_usuarios",
         "cambiar_contrasena": "cambiar_contrasena_usuarios",
+        "listar_roles": "listar_usuarios",
     }
 
     def perform_create(self, serializer):
@@ -274,6 +275,16 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         log_user_action(self.request.user, f"Eliminó usuario {instance.email}", self.request)
         super().perform_destroy(instance)
+    
+    @action(detail=False, methods=['get'], url_path='roles')
+    def listar_roles(self, request):
+        """
+        Endpoint para listar todos los roles disponibles.
+        Se controla con el permiso 'listar_usuarios'.
+        """
+        roles = Role.objects.filter(is_active=True).order_by("id")
+        serializer = RoleSerializer(roles, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], url_path='toggle-status')
     def toggle_active_status(self, request, pk=None):

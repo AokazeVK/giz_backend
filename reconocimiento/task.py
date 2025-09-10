@@ -5,6 +5,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from accounts.models import User
 from .models import Evento
+from django.contrib.sites.models import Site # 👈 Importación necesaria
 
 @shared_task
 def enviar_evento_email(evento_id):
@@ -15,6 +16,12 @@ def enviar_evento_email(evento_id):
     try:
         evento = Evento.objects.get(id=evento_id)
         
+        # 👈 Obtener la URL absoluta de la imagen para el correo
+        imagen_url = None
+        if evento.imagen:
+            current_site = Site.objects.get_current()
+            imagen_url = f"http://{current_site.domain}{evento.imagen.url}"
+
         usuarios = User.objects.filter(
             empresa__isnull=False,
             empresa__isAproved=True
@@ -33,6 +40,7 @@ def enviar_evento_email(evento_id):
                 'intro_message': "Nos complace invitarlo(a) a nuestro evento especial.",
                 'year': timezone.now().year,
                 'is_update': False, # Indica que no es un correo de actualización
+                'imagen_url': imagen_url, # 👈 Agregamos la URL de la imagen al contexto
             }
 
             html_message = render_to_string('emails/invitacion_evento.html', context)
@@ -69,6 +77,12 @@ def enviar_evento_actualizado_email(evento_id, datos_antiguos):
     try:
         evento = Evento.objects.get(id=evento_id)
         
+        # 👈 Obtener la URL absoluta de la imagen para el correo de actualización
+        imagen_url = None
+        if evento.imagen:
+            current_site = Site.objects.get_current()
+            imagen_url = f"http://{current_site.domain}{evento.imagen.url}"
+        
         usuarios = User.objects.filter(
             empresa__isnull=False,
             empresa__isAproved=True
@@ -84,6 +98,7 @@ def enviar_evento_actualizado_email(evento_id, datos_antiguos):
             'year': timezone.now().year,
             'is_update': True, # Indica que es un correo de actualización
             'datos_antiguos': datos_antiguos,
+            'imagen_url': imagen_url, # 👈 Agregamos la URL de la imagen al contexto
         }
 
         html_message = render_to_string('emails/invitacion_evento.html', context)
