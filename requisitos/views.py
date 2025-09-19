@@ -162,7 +162,7 @@ class RequisitoInputViewSet(viewsets.ModelViewSet):
         "destroy": "eliminar_requisitos_input",
         "toggle_status": "editar_requisitos_input",
         "get_requisitos_postulacion": "listar_requisitos_postulacion",
-        "get_tipos_sellos":"listar_requisitos_postulacion"
+        "get_tipos_sellos": "listar_requisitos_postulacion",
     }
 
     @action(
@@ -201,12 +201,12 @@ class RequisitoInputViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(requisitos_input, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=['get'], url_path='tipos_sellos')
+    @action(detail=False, methods=["get"], url_path="tipos_sellos")
     def get_tipos_sellos(self, request):
         tipo_sello = TipoSello.objects.filter(is_active=True).order_by("id")
         serializer = TipoSelloSerializerWithoutAllRelations(tipo_sello, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-   
+
     def perform_create(self, serializer):
         input_instance = serializer.save()
         log_user_action(
@@ -510,6 +510,7 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+
 class RequisitoInputValorViewSet(viewsets.ModelViewSet):
     serializer_class = RequisitoInputValorSerializer
     permission_classes = [IsAuthenticated]
@@ -521,7 +522,7 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
         if gestion:
             qs = qs.filter(gestion=gestion)
         return qs
-    
+
     @action(
         detail=False,
         methods=["get"],
@@ -533,23 +534,23 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
         """
         qs = RequisitoInputValor.objects.filter(
             usuario=self.request.user,
-            requisito_input__requisito__tipoSello__id=tipoSello_id  # <--- Este es el filtro clave
+            requisito_input__requisito__tipoSello__id=tipoSello_id,  # <--- Este es el filtro clave
         )
-        
+
         gestion = self.request.COOKIES.get("gestion")
-        
+
         if gestion:
             qs = qs.filter(gestion=gestion)
-            
+
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
-    
+
     @action(
         detail=False,
         methods=["get"],
-        url_path="evaluacion/(?P<tipoSello_id>[^/.]+)",
+        url_path="evaluacion",
     )
-    def get_evaluacion_datos(self, request, tipoSello_id=None):
+    def get_evaluacion_datos(self, request):
         """
         Retorna los datos de los Requisitos de usuarios agrupados por requisito.
         Solo accesible si el usuario logueado es evaluador de ese tipoSello y gestión.
@@ -557,50 +558,68 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
         gestion = self.request.COOKIES.get("gestion")
         # 1. Verificar si el usuario actual es un evaluador asignado a la evaluación.
         evaluacion_exists = Evaluacion.objects.filter(
-            tipoSello__id=tipoSello_id,
             gestion=gestion,
             evaluadores=request.user,
         ).exists()
 
         if not evaluacion_exists:
             return Response(
-                {"detail": "No tienes permiso para ver esta información."},
-                status=403
+                {"detail": "No tienes permiso para ver esta información."}, status=403
             )
-        
+
+        evaluador = User.objects.get(
+            role__name='Evaluador',
+            id=request.user.id
+        )
+
+        evaluaciones = Evaluacion.objects.filter(
+            evaluadores__in=[evaluador]
+        )
+
         # 2. Obtener los usuarios que han enviado datos para este tipoSello y gestión.
         #    Esto asegura que no se muestren usuarios sin datos.
         qs = RequisitoInputValor.objects.filter(
-            requisito_input__requisito__tipoSello__id=tipoSello_id,
-            gestion=gestion
-        ).select_related('usuario', 'requisito_input', 'requisito_input__requisito')
+            gestion=gestion,
+            requisito_input__requisito__tipoSello__evaluaciones__in=evaluaciones,
+        ).select_related(
+            "usuario","requisito_input", "requisito_input__requisito",
+        )
 
         # 3. Agrupar los datos para la respuesta.
         grouped_data = {}
         for item in qs:
             requisito_id = item.requisito_input.requisito.id
             requisito_nombre = item.requisito_input.requisito.nombre
+            tipo_sello = item.requisito_input.requisito.tipoSello.nombre
+            tipo_sello_id = item.requisito_input.requisito.tipoSello.id
             usuario_id = item.usuario.id
             usuario_email = item.usuario.email
-            
+            empresa = item.usuario.empresa.nombre
+
             # Crear la estructura si no existe
             if requisito_id not in grouped_data:
                 grouped_data[requisito_id] = {
                     "requisito_id": requisito_id,
                     "requisito_nombre": requisito_nombre,
-                    "usuarios_con_datos": {}
+                    
+                    "usuarios_con_datos": {},
                 }
-            
+
             if usuario_id not in grouped_data[requisito_id]["usuarios_con_datos"]:
                 grouped_data[requisito_id]["usuarios_con_datos"][usuario_id] = {
                     "usuario_id": usuario_id,
                     "usuario_email": usuario_email,
-                    "valores_requisito": []
+                    "tipo_sello":tipo_sello,
+                    "tipo_sello_id":tipo_sello_id,
+                    "empresa":empresa,
+                    "valores_requisito": [],
                 }
-            
+
             # Serializar el valor y agregarlo
             serializer = self.get_serializer(item)
-            grouped_data[requisito_id]["usuarios_con_datos"][usuario_id]["valores_requisito"].append(serializer.data)
+            grouped_data[requisito_id]["usuarios_con_datos"][usuario_id][
+                "valores_requisito"
+            ].append(serializer.data)
 
         # 4. Convertir a una lista de diccionarios para la respuesta final.
         response_data = []
@@ -610,6 +629,42 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
             response_data.append(data)
 
         return Response(response_data)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="fases-evaluacion/(?P<tipoSello_id>[^/.]+)",
+    )
+    def get_fases_evaluacion(self, request, tipoSello_id=None):
+        """
+        Retorna las fases de evaluación con sus checklists asignados para el evaluador actual.
+        Filtra por la gestión de la cookie.
+        """
+        gestion = self.request.COOKIES.get("gestion")
+
+        if not gestion:
+            return Response({"detail": "La gestión es requerida."}, status=400)
+
+        # 1. Obtener las evaluaciones a las que el usuario actual está asignado en la gestión actual.
+        evaluaciones_del_evaluador = Evaluacion.objects.filter(
+            evaluadores=request.user, gestion=gestion, tipoSello_id=tipoSello_id
+        )
+
+        # 2. Filtrar las fases que pertenecen a esas evaluaciones y a la gestión actual.
+        fases_qs = EvaluacionFases.objects.filter(
+            evaluacion__in=evaluaciones_del_evaluador, gestion=gestion
+        ).prefetch_related(
+            # Optimiza la consulta precargando los checklists para cada fase.
+            Prefetch(
+                "checklists",
+                queryset=ChecklistEvaluacion.objects.all(),
+                to_attr="related_checklists",
+            )
+        )
+
+        # 3. Serializar y devolver la respuesta.
+        serializer = EvaluacionFasesSerializer(fases_qs, many=True)
+        return Response(serializer.data)
 
     def perform_create(self, serializer):
         gestion = self.request.COOKIES.get("gestion")
