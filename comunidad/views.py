@@ -12,7 +12,7 @@ from django.core.files.base import ContentFile
 from django.db.models import Count
 from .serializers import (
     PostSerializer, CommentSerializer, ChatRoomSerializer,
-    MessageSerializer, UserSerializer
+    MessageSerializer, UserComunidadSerializer
 )
 
 # Get the custom user model once
@@ -123,7 +123,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = UserComunidadSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     @action(detail=False, methods=['get'])

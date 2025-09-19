@@ -5,27 +5,39 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Prefetch
 
 # Importa los nuevos modelos y serializadores
-from .models import TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases
+from .models import (
+    RequisitoInputValor,
+    TipoSello,
+    Requisito,
+    RequisitoInput,
+    ChecklistEvaluacion,
+    Evaluacion,
+    EvaluacionFases,
+)
 from .serializers import (
-    TipoSelloSerializer, 
-    RequisitoSerializer, 
+    RequisitoInputValorSerializer,
+    TipoSelloSerializer,
+    RequisitoSerializer,
     RequisitoInputSerializer,
-    ChecklistEvaluacionSerializer, 
+    ChecklistEvaluacionSerializer,
     EvaluacionSerializer,
     EvaluacionFasesSerializer,
-    UserSerializer
+    TipoSelloSerializerWithoutAllRelations,
+    UserSerializer,
 )
 from accounts.permissions import HasPermissionMap
 from accounts.utils import log_user_action
 from accounts.models import User
+
 # Importación de la tarea de Celery
 from .task import enviar_evaluacion_email
+
 
 class TipoSelloViewSet(viewsets.ModelViewSet):
     queryset = TipoSello.objects.all()
     serializer_class = TipoSelloSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
-    
+
     permission_code_map = {
         "list": "listar_tipos_sello",
         "retrieve": "listar_tipos_sello",
@@ -34,32 +46,43 @@ class TipoSelloViewSet(viewsets.ModelViewSet):
         "partial_update": "editar_tipos_sello",
         "destroy": "eliminar_tipos_sello",
     }
-    
+
     def get_queryset(self):
         gestion = self.request.COOKIES.get("gestion")
         if gestion:
-            evaluaciones_qs = Evaluacion.objects.filter(gestion=gestion).prefetch_related("evaluadores")
+            evaluaciones_qs = Evaluacion.objects.filter(
+                gestion=gestion
+            ).prefetch_related("evaluadores")
             return TipoSello.objects.all().prefetch_related(
-                "requisitos__inputs",
-                Prefetch("evaluaciones", queryset=evaluaciones_qs)
+                "requisitos__inputs", Prefetch("evaluaciones", queryset=evaluaciones_qs)
             )
-        return TipoSello.objects.all().prefetch_related("requisitos__inputs", "evaluaciones__evaluadores")
+        return TipoSello.objects.all().prefetch_related(
+            "requisitos__inputs", "evaluaciones__evaluadores"
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context["gestion"] = self.request.COOKIES.get("gestion")
         return context
-    
+
     def perform_create(self, serializer):
         tiposello = serializer.save()
-        log_user_action(self.request.user, f"Creó Tipo de Sello: {tiposello.nombre}", self.request)
+        log_user_action(
+            self.request.user, f"Creó Tipo de Sello: {tiposello.nombre}", self.request
+        )
 
     def perform_update(self, serializer):
         tiposello = serializer.save()
-        log_user_action(self.request.user, f"Actualizó Tipo de Sello: {tiposello.nombre}", self.request)
+        log_user_action(
+            self.request.user,
+            f"Actualizó Tipo de Sello: {tiposello.nombre}",
+            self.request,
+        )
 
     def perform_destroy(self, instance):
-        log_user_action(self.request.user, f"Eliminó Tipo de Sello: {instance.nombre}", self.request)
+        log_user_action(
+            self.request.user, f"Eliminó Tipo de Sello: {instance.nombre}", self.request
+        )
         super().perform_destroy(instance)
 
 
@@ -67,7 +90,7 @@ class RequisitoViewSet(viewsets.ModelViewSet):
     queryset = Requisito.objects.all().prefetch_related("inputs")
     serializer_class = RequisitoSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
-    
+
     permission_code_map = {
         "list": "listar_requisitos",
         "retrieve": "listar_requisitos",
@@ -77,7 +100,7 @@ class RequisitoViewSet(viewsets.ModelViewSet):
         "destroy": "eliminar_requisitos",
         "listar_tipos_sello": "listar_requisitos",
     }
-    
+
     def get_queryset(self):
         qs = super().get_queryset()
         gestion = self.request.COOKIES.get("gestion")
@@ -88,26 +111,39 @@ class RequisitoViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         gestion = self.request.COOKIES.get("gestion")
         if not gestion:
-            return Response({"error": "La cookie 'gestion' es requerida para crear un requisito."}, 
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "La cookie 'gestion' es requerida para crear un requisito."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         requisito = serializer.save(gestion=gestion)
-        log_user_action(self.request.user, f"Creó un Requisito con ID: {requisito.id}", self.request)
-        
+        log_user_action(
+            self.request.user, f"Creó un Requisito con ID: {requisito.id}", self.request
+        )
+
     def perform_update(self, serializer):
         requisito = serializer.save()
-        log_user_action(self.request.user, f"Actualizó un Requisito con ID: {requisito.id}", self.request)
-        
+        log_user_action(
+            self.request.user,
+            f"Actualizó un Requisito con ID: {requisito.id}",
+            self.request,
+        )
+
     def perform_destroy(self, instance):
-        log_user_action(self.request.user, f"Eliminó Requisito con ID: {instance.id}", self.request)
+        log_user_action(
+            self.request.user, f"Eliminó Requisito con ID: {instance.id}", self.request
+        )
         super().perform_destroy(instance)
 
-    @action(detail=False, methods=['get'], url_path='tipos-sello')
+    @action(detail=False, methods=["get"], url_path="tipos-sello")
     def listar_tipos_sello(self, request):
         """
         Listar todos los tipos de sello disponibles.
         """
-        tipos_sello = TipoSello.objects.all()  #  Busca todos los objetos del modelo TipoSello
+        tipos_sello = (
+            TipoSello.objects.all()
+        )  #  Busca todos los objetos del modelo TipoSello
         from .serializers import TipoSelloSerializer
+
         serializer = TipoSelloSerializer(tipos_sello, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -125,21 +161,75 @@ class RequisitoInputViewSet(viewsets.ModelViewSet):
         "partial_update": "editar_requisitos_input",
         "destroy": "eliminar_requisitos_input",
         "toggle_status": "editar_requisitos_input",
+        "get_requisitos_postulacion": "listar_requisitos_postulacion",
+        "get_tipos_sellos":"listar_requisitos_postulacion"
     }
-    
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="requisitos_postulacion/(?P<tipoSello_id>[^/.]+)",
+    )
+    def get_requisitos_postulacion(self, request, tipoSello_id=None):
+        """
+        Devuelve los RequisitoInput del primer Requisito que pertenezca a un TipoSello específico y a la gestión actual.
+        """
+        gestion = request.COOKIES.get("gestion")
+
+        if not gestion:
+            return Response(
+                {"error": "La cookie 'gestion' es requerida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Filtra por el tipo de sello y la gestión, luego toma el primero
+        requisito_encontrado = Requisito.objects.filter(
+            tipoSello__id=tipoSello_id, gestion=gestion
+        ).first()
+
+        if not requisito_encontrado:
+            return Response(
+                {
+                    "message": "No se encontró ningún requisito para el tipo de sello y gestión especificados."
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        # Filtra los RequisitoInput que pertenecen al requisito encontrado
+        requisitos_input = RequisitoInput.objects.filter(requisito=requisito_encontrado)
+
+        serializer = self.get_serializer(requisitos_input, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='tipos_sellos')
+    def get_tipos_sellos(self, request):
+        tipo_sello = TipoSello.objects.filter(is_active=True).order_by("id")
+        serializer = TipoSelloSerializerWithoutAllRelations(tipo_sello, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+   
     def perform_create(self, serializer):
         input_instance = serializer.save()
-        log_user_action(self.request.user, f"Creó RequisitoInput: {input_instance.label}", self.request)
+        log_user_action(
+            self.request.user,
+            f"Creó RequisitoInput: {input_instance.label}",
+            self.request,
+        )
 
     def perform_update(self, serializer):
         input_instance = serializer.save()
-        log_user_action(self.request.user, f"Actualizó RequisitoInput: {input_instance.label}", self.request)
+        log_user_action(
+            self.request.user,
+            f"Actualizó RequisitoInput: {input_instance.label}",
+            self.request,
+        )
 
     def perform_destroy(self, instance):
-        log_user_action(self.request.user, f"Eliminó RequisitoInput: {instance.label}", self.request)
+        log_user_action(
+            self.request.user, f"Eliminó RequisitoInput: {instance.label}", self.request
+        )
         super().perform_destroy(instance)
-    
-    @action(detail=True, methods=['post'], url_path='toggle-status')
+
+    @action(detail=True, methods=["post"], url_path="toggle-status")
     def toggle_status(self, request, pk=None):
         """
         Alterna el estado (activo/inactivo) de un RequisitoInput.
@@ -147,16 +237,25 @@ class RequisitoInputViewSet(viewsets.ModelViewSet):
         requisito_input = self.get_object()
         requisito_input.is_active = not requisito_input.is_active
         requisito_input.save()
-        log_user_action(self.request.user, f"Se alternó el estado de RequisitoInput con ID: {requisito_input.id} a {requisito_input.is_active}", self.request)
-        return Response({"message": f"El estado del RequisitoInput ha sido cambiado a {requisito_input.is_active}."}, status=status.HTTP_200_OK)
-    
-        
+        log_user_action(
+            self.request.user,
+            f"Se alternó el estado de RequisitoInput con ID: {requisito_input.id} a {requisito_input.is_active}",
+            self.request,
+        )
+        return Response(
+            {
+                "message": f"El estado del RequisitoInput ha sido cambiado a {requisito_input.is_active}."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class ChecklistEvaluacionViewSet(viewsets.ModelViewSet):
     # El serializador ya maneja la relación
     queryset = ChecklistEvaluacion.objects.all()
     serializer_class = ChecklistEvaluacionSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
-    
+
     permission_code_map = {
         "list": "listar_checklist_evaluacion",
         "retrieve": "listar_checklist_evaluacion",
@@ -169,17 +268,29 @@ class ChecklistEvaluacionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         checklist = serializer.save()
-        log_user_action(self.request.user, f"Creó Checklist de Evaluación: {checklist.nombre}", self.request)
-    
+        log_user_action(
+            self.request.user,
+            f"Creó Checklist de Evaluación: {checklist.nombre}",
+            self.request,
+        )
+
     def perform_update(self, serializer):
         checklist = serializer.save()
-        log_user_action(self.request.user, f"Actualizó Checklist de Evaluación: {checklist.nombre}", self.request)
+        log_user_action(
+            self.request.user,
+            f"Actualizó Checklist de Evaluación: {checklist.nombre}",
+            self.request,
+        )
 
     def perform_destroy(self, instance):
-        log_user_action(self.request.user, f"Eliminó Checklist de Evaluación: {instance.nombre}", self.request)
+        log_user_action(
+            self.request.user,
+            f"Eliminó Checklist de Evaluación: {instance.nombre}",
+            self.request,
+        )
         super().perform_destroy(instance)
-        
-    @action(detail=True, methods=['post'], url_path='toggle-status')
+
+    @action(detail=True, methods=["post"], url_path="toggle-status")
     def toggle_status(self, request, pk=None):
         """
         Alterna el estado (activo/inactivo) de un Checklist de Evaluación.
@@ -187,8 +298,17 @@ class ChecklistEvaluacionViewSet(viewsets.ModelViewSet):
         checklist = self.get_object()
         checklist.is_active = not checklist.is_active
         checklist.save()
-        log_user_action(self.request.user, f"Se alternó el estado de Checklist con ID: {checklist.id} a {checklist.is_active}", self.request)
-        return Response({"message": f"El estado del Checklist ha sido cambiado a {checklist.is_active}."}, status=status.HTTP_200_OK)
+        log_user_action(
+            self.request.user,
+            f"Se alternó el estado de Checklist con ID: {checklist.id} a {checklist.is_active}",
+            self.request,
+        )
+        return Response(
+            {
+                "message": f"El estado del Checklist ha sido cambiado a {checklist.is_active}."
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # Nuevo ViewSet para las fases de evaluación
@@ -206,31 +326,40 @@ class EvaluacionFasesViewSet(viewsets.ModelViewSet):
         "destroy": "eliminar_fases_evaluacion",
         "toggle_status": "editar_fases_evaluacion",
     }
-    
+
     def perform_create(self, serializer):
         # Obtiene el ID de la evaluación del validated_data
-        evaluacion_id = serializer.validated_data.get('evaluacion').id
-        
+        evaluacion_id = serializer.validated_data.get("evaluacion").id
+
         # Filtra la evaluación para obtener el campo 'gestion'
         try:
             evaluacion = Evaluacion.objects.get(id=evaluacion_id)
             gestion = evaluacion.gestion
         except Evaluacion.DoesNotExist:
-            return Response({"error": "La evaluación proporcionada no existe."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "La evaluación proporcionada no existe."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         # Asigna la gestión a la instancia de la fase antes de guardar
         fase = serializer.save(gestion=gestion)
-        log_user_action(self.request.user, f"Creó una fase: {fase.nombre}", self.request)
-    
+        log_user_action(
+            self.request.user, f"Creó una fase: {fase.nombre}", self.request
+        )
+
     def perform_update(self, serializer):
         fase = serializer.save()
-        log_user_action(self.request.user, f"Actualizó la fase: {fase.nombre}", self.request)
+        log_user_action(
+            self.request.user, f"Actualizó la fase: {fase.nombre}", self.request
+        )
 
     def perform_destroy(self, instance):
-        log_user_action(self.request.user, f"Eliminó la fase: {instance.nombre}", self.request)
+        log_user_action(
+            self.request.user, f"Eliminó la fase: {instance.nombre}", self.request
+        )
         super().perform_destroy(instance)
 
-    @action(detail=True, methods=['post'], url_path='toggle-status')
+    @action(detail=True, methods=["post"], url_path="toggle-status")
     def toggle_status(self, request, pk=None):
         """
         Alterna el estado (activo/inactivo) de una fase de evaluación.
@@ -238,14 +367,24 @@ class EvaluacionFasesViewSet(viewsets.ModelViewSet):
         fase = self.get_object()
         fase.is_active = not fase.is_active
         fase.save()
-        log_user_action(self.request.user, f"Se alternó el estado de la fase con ID: {fase.id} a {fase.is_active}", self.request)
-        return Response({"message": f"El estado de la fase ha sido cambiado a {fase.is_active}."}, status=status.HTTP_200_OK)
+        log_user_action(
+            self.request.user,
+            f"Se alternó el estado de la fase con ID: {fase.id} a {fase.is_active}",
+            self.request,
+        )
+        return Response(
+            {"message": f"El estado de la fase ha sido cambiado a {fase.is_active}."},
+            status=status.HTTP_200_OK,
+        )
+
 
 class EvaluacionViewSet(viewsets.ModelViewSet):
-    queryset = Evaluacion.objects.all().prefetch_related("evaluadores", "fases__checklists")
+    queryset = Evaluacion.objects.all().prefetch_related(
+        "evaluadores", "fases__checklists"
+    )
     serializer_class = EvaluacionSerializer
     permission_classes = [IsAuthenticated, HasPermissionMap]
-    
+
     permission_code_map = {
         "list": "listar_evaluaciones",
         "retrieve": "listar_evaluaciones",
@@ -257,7 +396,7 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
         "listar_tipos_sello": "listar_evaluaciones",
         "listar_evaluadores": "listar_evaluaciones",
     }
-    
+
     def get_queryset(self):
         qs = super().get_queryset()
         gestion = self.request.COOKIES.get("gestion")
@@ -265,7 +404,7 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
             # Aquí se filtra por la gestión de la evaluación, no de las fases
             qs = qs.filter(gestion=gestion)
         return qs
-        
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context["gestion"] = self.request.COOKIES.get("gestion")
@@ -273,10 +412,14 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         evaluacion = serializer.save()
-        log_user_action(self.request.user, f"Creó Evaluación para: {evaluacion.tipoSello.nombre} en gestión {evaluacion.gestion}", self.request)
-        
+        log_user_action(
+            self.request.user,
+            f"Creó Evaluación para: {evaluacion.tipoSello.nombre} en gestión {evaluacion.gestion}",
+            self.request,
+        )
+
         # Llama a la tarea de Celery de forma asíncrona
-        evaluadores_ids = list(evaluacion.evaluadores.values_list('id', flat=True))
+        evaluadores_ids = list(evaluacion.evaluadores.values_list("id", flat=True))
         if evaluadores_ids:
             enviar_evaluacion_email.delay(evaluacion.id, evaluadores_ids)
 
@@ -285,16 +428,28 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
         evaluacion = serializer.save()
         new_evaluadores = set(evaluacion.evaluadores.all())
         added_evaluadores = new_evaluadores - old_evaluadores
-        
-        log_user_action(self.request.user, f"Actualizó Evaluación para: {evaluacion.tipoSello.nombre} en gestión {evaluacion.gestion}", self.request)
-        
+
+        log_user_action(
+            self.request.user,
+            f"Actualizó Evaluación para: {evaluacion.tipoSello.nombre} en gestión {evaluacion.gestion}",
+            self.request,
+        )
+
         if added_evaluadores:
             added_evaluadores_ids = list(user.id for user in added_evaluadores)
             enviar_evaluacion_email.delay(evaluacion.id, added_evaluadores_ids)
-            log_user_action(self.request.user, f"Se programó el envío de correo a {len(added_evaluadores)} nuevos evaluadores.", self.request)
+            log_user_action(
+                self.request.user,
+                f"Se programó el envío de correo a {len(added_evaluadores)} nuevos evaluadores.",
+                self.request,
+            )
 
     def perform_destroy(self, instance):
-        log_user_action(self.request.user, f"Eliminó Evaluación para: {instance.tipoSello.nombre} en gestión {instance.gestion}", self.request)
+        log_user_action(
+            self.request.user,
+            f"Eliminó Evaluación para: {instance.tipoSello.nombre} en gestión {instance.gestion}",
+            self.request,
+        )
         super().perform_destroy(instance)
 
     @action(detail=False, methods=["get"], url_path="evaluadores")
@@ -316,27 +471,150 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
         """
         gestion = request.COOKIES.get("gestion")
         if gestion:
-            evaluaciones_qs = Evaluacion.objects.filter(gestion=gestion).prefetch_related("evaluadores")
+            evaluaciones_qs = Evaluacion.objects.filter(
+                gestion=gestion
+            ).prefetch_related("evaluadores")
             tipos_sello = TipoSello.objects.all().prefetch_related(
-                "requisitos__inputs",
-                Prefetch("evaluaciones", queryset=evaluaciones_qs)
+                "requisitos__inputs", Prefetch("evaluaciones", queryset=evaluaciones_qs)
             )
         else:
-            tipos_sello = TipoSello.objects.all().prefetch_related("requisitos__inputs", "evaluaciones__evaluadores")
-        
-        serializer = TipoSelloSerializer(tipos_sello, many=True, context=self.get_serializer_context())
+            tipos_sello = TipoSello.objects.all().prefetch_related(
+                "requisitos__inputs", "evaluaciones__evaluadores"
+            )
+
+        serializer = TipoSelloSerializer(
+            tipos_sello, many=True, context=self.get_serializer_context()
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     @action(detail=True, methods=["post"], url_path="cambiar-estado")
     def cambiar_estado(self, request, pk=None):
         evaluacion = self.get_object()
         new_status = request.data.get("estado")
-        
+
         if new_status and new_status in dict(Evaluacion.ESTADO_CHOICES):
             evaluacion.estado = new_status
             evaluacion.save()
-            log_user_action(self.request.user, f"Cambió el estado de la evaluación {evaluacion.id} a '{new_status}'", self.request)
-            return Response({"message": f"Estado de la evaluación cambiado a '{new_status}'."}, 
-                            status=status.HTTP_200_OK)
+            log_user_action(
+                self.request.user,
+                f"Cambió el estado de la evaluación {evaluacion.id} a '{new_status}'",
+                self.request,
+            )
+            return Response(
+                {"message": f"Estado de la evaluación cambiado a '{new_status}'."},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"error": "Estado inválido proporcionado."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+class RequisitoInputValorViewSet(viewsets.ModelViewSet):
+    serializer_class = RequisitoInputValorSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = RequisitoInputValor.objects.filter(usuario=self.request.user)
+        gestion = self.request.COOKIES.get("gestion")
+
+        if gestion:
+            qs = qs.filter(gestion=gestion)
+        return qs
+    
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="postulacion_usuario/(?P<tipoSello_id>[^/.]+)",
+    )
+    def get_postulacion_usuario(self, request, tipoSello_id=None):
+        """
+        Retorna los valores de los requisitos de un usuario para un tipo de sello y gestión específicos.
+        """
+        qs = RequisitoInputValor.objects.filter(
+            usuario=self.request.user,
+            requisito_input__requisito__tipoSello__id=tipoSello_id  # <--- Este es el filtro clave
+        )
         
-        return Response({"error": "Estado inválido proporcionado."}, status=status.HTTP_400_BAD_REQUEST)
+        gestion = self.request.COOKIES.get("gestion")
+        
+        if gestion:
+            qs = qs.filter(gestion=gestion)
+            
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
+    
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="evaluacion/(?P<tipoSello_id>[^/.]+)",
+    )
+    def get_evaluacion_datos(self, request, tipoSello_id=None):
+        """
+        Retorna los datos de los Requisitos de usuarios agrupados por requisito.
+        Solo accesible si el usuario logueado es evaluador de ese tipoSello y gestión.
+        """
+        gestion = self.request.COOKIES.get("gestion")
+        # 1. Verificar si el usuario actual es un evaluador asignado a la evaluación.
+        evaluacion_exists = Evaluacion.objects.filter(
+            tipoSello__id=tipoSello_id,
+            gestion=gestion,
+            evaluadores=request.user,
+        ).exists()
+
+        if not evaluacion_exists:
+            return Response(
+                {"detail": "No tienes permiso para ver esta información."},
+                status=403
+            )
+        
+        # 2. Obtener los usuarios que han enviado datos para este tipoSello y gestión.
+        #    Esto asegura que no se muestren usuarios sin datos.
+        qs = RequisitoInputValor.objects.filter(
+            requisito_input__requisito__tipoSello__id=tipoSello_id,
+            gestion=gestion
+        ).select_related('usuario', 'requisito_input', 'requisito_input__requisito')
+
+        # 3. Agrupar los datos para la respuesta.
+        grouped_data = {}
+        for item in qs:
+            requisito_id = item.requisito_input.requisito.id
+            requisito_nombre = item.requisito_input.requisito.nombre
+            usuario_id = item.usuario.id
+            usuario_email = item.usuario.email
+            
+            # Crear la estructura si no existe
+            if requisito_id not in grouped_data:
+                grouped_data[requisito_id] = {
+                    "requisito_id": requisito_id,
+                    "requisito_nombre": requisito_nombre,
+                    "usuarios_con_datos": {}
+                }
+            
+            if usuario_id not in grouped_data[requisito_id]["usuarios_con_datos"]:
+                grouped_data[requisito_id]["usuarios_con_datos"][usuario_id] = {
+                    "usuario_id": usuario_id,
+                    "usuario_email": usuario_email,
+                    "valores_requisito": []
+                }
+            
+            # Serializar el valor y agregarlo
+            serializer = self.get_serializer(item)
+            grouped_data[requisito_id]["usuarios_con_datos"][usuario_id]["valores_requisito"].append(serializer.data)
+
+        # 4. Convertir a una lista de diccionarios para la respuesta final.
+        response_data = []
+        for requisito_id, data in grouped_data.items():
+            # Convertir el diccionario de usuarios a una lista
+            data["usuarios_con_datos"] = list(data["usuarios_con_datos"].values())
+            response_data.append(data)
+
+        return Response(response_data)
+
+    def perform_create(self, serializer):
+        gestion = self.request.COOKIES.get("gestion")
+        serializer.save(usuario=self.request.user, gestion=gestion)
+
+    def perform_update(self, serializer):
+        gestion = self.request.COOKIES.get("gestion")
+        serializer.save(usuario=self.request.user, gestion=gestion)

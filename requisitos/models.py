@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from auditlog.registry import auditlog
 from accounts.models import User
 from django.utils import timezone
+from django.conf import settings
 
 # Tipos de datos para los inputs de los requisitos
 INPUT_TYPES = (
@@ -141,3 +142,31 @@ class ChecklistEvaluacion(models.Model):
         return self.nombre
 
 auditlog.register(ChecklistEvaluacion)
+
+
+def requisito_file_upload_path(instance, filename):
+    return f"requisitos/{instance.usuario.id}/{instance.requisito_input.id}/{filename}"
+
+class RequisitoInputValor(models.Model):
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="valores_requisito"
+    )
+    requisito_input = models.ForeignKey(
+        "RequisitoInput",
+        on_delete=models.CASCADE,
+        related_name="valores"
+    )
+    gestion = models.CharField(max_length=10)
+    valor = models.TextField(null=True, blank=True)  # único campo para guardar
+    archivo = models.FileField(upload_to=requisito_file_upload_path, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("usuario", "requisito_input", "gestion")
+
+    def __str__(self):
+        return f"{self.requisito_input.label} - {self.usuario} ({self.gestion})"
+

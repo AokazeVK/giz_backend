@@ -18,7 +18,7 @@ def enviar_convocatoria_email(fecha_id):
 
         # Aquí está el ajuste clave para la tarea de Celery
         # Usamos settings.SITE_URL para construir la URL base
-        base_url = getattr(fzz, 'SITE_URL', 'http://localhost:8000')
+        base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
 
         archivos_data = ArchivoFechaConvocatoriaSerializer(
             archivos_qs,

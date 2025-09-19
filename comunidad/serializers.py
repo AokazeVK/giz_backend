@@ -3,13 +3,13 @@ from django.contrib.auth import get_user_model
 from .models import Post, Comment, ChatRoom, Message
 
 User = get_user_model()
-class UserSerializer(serializers.ModelSerializer):
+class UserComunidadSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'avatar', 'is_online']
 
 class CommentSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = UserComunidadSerializer(read_only=True)
     
     class Meta:
         model = Comment
@@ -17,7 +17,7 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 class PostSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author = UserComunidadSerializer(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     comments_count = serializers.SerializerMethodField()
     
@@ -30,7 +30,7 @@ class PostSerializer(serializers.ModelSerializer):
         return obj.comments.count()
 
 class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
+    sender = UserComunidadSerializer(read_only=True)
     
     class Meta:
         model = Message
@@ -38,7 +38,7 @@ class MessageSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 class ChatRoomSerializer(serializers.ModelSerializer):
-    participants = UserSerializer(many=True, read_only=True)
+    participants = UserComunidadSerializer(many=True, read_only=True)
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     

@@ -1,8 +1,9 @@
 from rest_framework import serializers
 # Importa los nuevos modelos
-from .models import TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases
+from .models import RequisitoInputValor, TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases
 from accounts.serializers import UserSerializer
 from accounts.models import User
+from django.db.models import Max
 
 # Serializador para los Inputs de Requisitos
 class RequisitoInputSerializer(serializers.ModelSerializer):
@@ -62,6 +63,10 @@ class TipoSelloSerializer(serializers.ModelSerializer):
             evaluaciones = obj.evaluaciones.all()
         return EvaluacionSerializer(evaluaciones, many=True).data
 
+class TipoSelloSerializerWithoutAllRelations(serializers.ModelSerializer):
+     class Meta:
+        model = TipoSello
+        fields = ["id", "nombre","is_active"]
 
 # Serializador para Checklists de Evaluación (ahora anidado en Fases)
 class ChecklistEvaluacionSerializer(serializers.ModelSerializer):
@@ -155,3 +160,34 @@ class EvaluacionSerializer(serializers.ModelSerializer):
             instance.evaluadores.set(evaluadores_ids)
             
         return instance
+
+
+class RequisitoInputValorSerializer(serializers.ModelSerializer):
+    archivo_url = serializers.SerializerMethodField()
+    requisito_input_nombre = serializers.CharField(source="requisito_input.label", read_only=True)
+    class Meta:
+        model = RequisitoInputValor
+        fields = ["id", "requisito_input", "requisito_input_nombre", "valor", "archivo", "archivo_url", "created_at"]
+
+    from django.db.models import Max
+
+
+    def get_archivo_url(self, obj):
+        request = self.context.get("request")
+        if obj.archivo and request:
+            return request.build_absolute_uri(obj.archivo.url)
+        return None
+
+    def validate(self, data):
+        requisito_input = data["requisito_input"]
+
+        # Validación de required
+        if requisito_input.is_required:
+            if requisito_input.input_type == "file":
+                if not data.get("archivo"):
+                    raise serializers.ValidationError("Este archivo es obligatorio.")
+            else:
+                if not data.get("valor"):
+                    raise serializers.ValidationError("Este campo es obligatorio.")
+
+        return data
