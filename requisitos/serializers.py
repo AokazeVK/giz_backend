@@ -1,7 +1,8 @@
 from rest_framework import serializers
 # Importa los nuevos modelos
-from .models import RequisitoInputValor, TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases
-from accounts.serializers import UserSerializer
+from .models import RequisitoInputValor, TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases, EvaluacionDato
+from preparacion.models import FaseEmpresa
+
 from accounts.models import User
 from django.db.models import Max
 
@@ -120,7 +121,8 @@ class EvaluacionFasesSerializer(serializers.ModelSerializer):
 class EvaluacionSerializer(serializers.ModelSerializer):
     # Nuevo campo para mostrar el nombre del tipo de sello
     tipoSello_nombre = serializers.CharField(source='tipoSello.nombre', read_only=True)
-    evaluadores = UserSerializer(many=True, read_only=True)
+    
+    evaluadores = serializers.SerializerMethodField()
     evaluadores_ids = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.filter(role__name='Evaluador'),
         many=True,
@@ -139,7 +141,12 @@ class EvaluacionSerializer(serializers.ModelSerializer):
             "fases", "created_at", "updated_at"
         ]
         read_only_fields = ["id", "estado", "is_active", "created_at", "updated_at", "tipoSello_nombre"]
-        
+    
+    def get_evaluadores(self, obj):
+        from accounts.serializers import UserSerializer   # 👈 import lazy
+        return UserSerializer(obj.evaluadores.all(), many=True, context=self.context).data
+    
+          
     def create(self, validated_data):
         evaluadores_ids = validated_data.pop("evaluadores_ids", [])
         
@@ -165,12 +172,13 @@ class EvaluacionSerializer(serializers.ModelSerializer):
 class RequisitoInputValorSerializer(serializers.ModelSerializer):
     archivo_url = serializers.SerializerMethodField()
     requisito_input_nombre = serializers.CharField(source="requisito_input.label", read_only=True)
+    
     class Meta:
         model = RequisitoInputValor
-        fields = ["id", "requisito_input", "requisito_input_nombre", "valor", "archivo", "archivo_url", "created_at"]
-
-    from django.db.models import Max
-
+        # Aquí agregamos 'empresa' a los campos, aunque será un campo de solo lectura
+        # y se llenará automáticamente en el método validate.
+        fields = ["id", "requisito_input", "requisito_input_nombre", "valor", "archivo", "archivo_url", "created_at", "empresa"]
+        read_only_fields = ["id", "requisito_input_nombre", "archivo_url", "created_at", "empresa"]
 
     def get_archivo_url(self, obj):
         request = self.context.get("request")
@@ -179,15 +187,93 @@ class RequisitoInputValorSerializer(serializers.ModelSerializer):
         return None
 
     def validate(self, data):
-        requisito_input = data["requisito_input"]
-
-        # Validación de required
+        requisito_input = data.get("requisito_input")
+        
+        # 1. Validación de campos obligatorios
         if requisito_input.is_required:
             if requisito_input.input_type == "file":
                 if not data.get("archivo"):
-                    raise serializers.ValidationError("Este archivo es obligatorio.")
+                    raise serializers.ValidationError({"archivo": "Este archivo es obligatorio."})
             else:
                 if not data.get("valor"):
-                    raise serializers.ValidationError("Este campo es obligatorio.")
+                    raise serializers.ValidationError({"valor": "Este campo es obligatorio."})
+
+        # 2. Validación de postulación única por empresa
+        # Obtener la empresa del usuario
+        user = self.context['request'].user
+        if not hasattr(user, 'empresa') or not user.empresa:
+            raise serializers.ValidationError({"detail": "El usuario no está vinculado a una empresa."})
+        
+        user_empresa = user.empresa
+        
+        # Obtener la gestión del contexto
+        gestion = self.context.get('gestion')
+        if not gestion:
+            raise serializers.ValidationError({"detail": "No se pudo obtener la gestión de las cookies."})
+
+        # Verificar si ya existe un registro para esta empresa, requisito y gestión
+        # El `self.instance` es para las operaciones de `update` y evitar el error de "ya existe".
+        if self.instance is None and RequisitoInputValor.objects.filter(
+            empresa=user_empresa,
+            requisito_input=requisito_input,
+            gestion=gestion
+        ).exists():
+            raise serializers.ValidationError(
+                {"detail": "Su empresa ya ha enviado este requisito para esta gestión."}
+            )
+
+        # 3. Asignar la empresa y la gestión a los datos validados
+        data['empresa'] = user_empresa
+        data['gestion'] = gestion
+        
+        return data
+
+    def create(self, validated_data):
+        # El campo 'empresa' ya está en validated_data gracias al método validate
+        return super().create(validated_data)
+class EvaluacionDatoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EvaluacionDato
+        fields = ['id', 'puntaje', 'comentarios', 'usuario', 'empresa', 'checklist_evaluacion', 'gestion']
+
+    def validate(self, data):
+        # Valida que el puntaje no sobrepase el porcentaje del checklist
+        checklist = data.get('checklist_evaluacion')
+        puntaje = data.get('puntaje')
+
+        if puntaje is not None and checklist is not None:
+            if puntaje > checklist.porcentaje:
+                raise serializers.ValidationError(
+                    {"puntaje": "El puntaje no puede ser mayor que el porcentaje del checklist."}
+                )
+        
+        # Valida si ya existe un registro con las mismas claves únicas
+        # unique_together = ('usuario', 'checklist_evaluacion', 'gestion')
+        usuario = data.get('usuario')
+        gestion = self.context.get('gestion')
+
+        if EvaluacionDato.objects.filter(
+            usuario=usuario,
+            checklist_evaluacion=checklist,
+            gestion=gestion
+        ).exists():
+            raise serializers.ValidationError(
+                "Ya existe un registro de evaluación para este usuario, checklist y gestión."
+            )
 
         return data
+
+    def create(self, validated_data):
+        # Obtiene la gestión de la cookie del request, pasada por el contexto
+        gestion = self.context.get('gestion')
+        if not gestion:
+            raise serializers.ValidationError("No se pudo obtener la gestión de las cookies.")
+        
+        # Agrega la gestión a los datos validados
+        validated_data['gestion'] = gestion
+
+        # Crea un registro en FaseEmpresa si no existe
+        empresa = validated_data.get('empresa')
+        FaseEmpresa.objects.get_or_create(empresa=empresa, gestion=gestion)
+        
+        return super().create(validated_data)

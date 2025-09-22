@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'preparacion',
     'requisitos',
     'reconocimiento',
+    'dashboard',
 ]
 
 # ======================

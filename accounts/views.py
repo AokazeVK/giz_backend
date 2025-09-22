@@ -25,7 +25,7 @@ from .utils import log_user_action
 def login_view(request):
     email = request.data.get("email", "").lower().strip()
     password = request.data.get("password")
-    gestion = request.data.get("gestion")  # <-- se recibe del body
+    gestion = request.data.get("gestion")
 
     if not gestion:
         return Response({"error": "El campo 'gestion' es obligatorio"}, status=status.HTTP_400_BAD_REQUEST)
@@ -41,17 +41,29 @@ def login_view(request):
         return Response({"error": "Tu cuenta ha sido desactivada. Contacta al administrador."}, status=status.HTTP_403_FORBIDDEN)
 
     refresh = RefreshToken.for_user(user)
-    response = Response({"message": "Login exitoso"})
+    response = Response({
+        "message": "Login exitoso",
+        "user": UserSerializer(user).data, # Serializamos el usuario con su empresa
+        "gestion": gestion
+    })
 
-    # Tokens
+    # Cookies de autenticación
     response.set_cookie(key="access_token", value=str(refresh.access_token),
                         httponly=True, secure=False, samesite='Lax', max_age=300)
     response.set_cookie(key="refresh_token", value=str(refresh),
                         httponly=True, secure=False, samesite='Lax', max_age=86400)
-
-    # Nueva cookie gestion
+    
+    # Cookie de gestión
     response.set_cookie(key="gestion", value=gestion,
                         httponly=True, secure=False, samesite='Lax', max_age=86400)
+
+    # Si el usuario tiene una empresa, guarda su ID en una cookie
+    if user.empresa:
+        response.set_cookie(key="empresa_id", value=str(user.empresa.id),
+                            httponly=True, secure=False, samesite='Lax', max_age=86400)
+    else:
+        # En caso de que no tenga empresa, borra la cookie si existe
+        response.delete_cookie("empresa_id")
 
     log_user_action(user, f"Login exitoso en gestión {gestion}", request)
     return response
@@ -115,26 +127,17 @@ def refresh_token_view(request):
 @permission_classes([IsAuthenticated])
 def profile_view(request):
     user = request.user
-    gestion = request.COOKIES.get("gestion")  # <-- agregado
+    
+    # Usa el UserSerializer para obtener toda la info del usuario, incluyendo la empresa
+    serializer = UserSerializer(user)
+    
+    response_data = serializer.data
+    response_data['gestion'] = request.COOKIES.get("gestion")
 
-    role_data = None
-    if user.role:
-        permissions = RolePermission.objects.filter(role=user.role).select_related("permission")
-        perms_list = [{"label": rp.permission.label, "code": rp.permission.code} for rp in permissions]
-        role_data = {"name": user.role.name, "permissions": perms_list}
-
-
-    avatar_url = user.avatar.url if user.avatar else None
-
-    return Response({
-        "username": user.username,
-        "email": user.email,
-        "id": user.id,
-        "avatar": avatar_url,  #
-        "role": role_data,
-        "gestion": gestion
-    })
-
+    # Si necesitas acceso al ID de la empresa por separado en el frontend
+    response_data['empresa_id'] = request.COOKIES.get("empresa_id")
+    
+    return Response(response_data)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])

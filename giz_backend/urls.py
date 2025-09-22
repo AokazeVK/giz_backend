@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/requisitos/", include("requisitos.urls")),
     path('', include('comunidad.urls')),
     path("api/reconocimiento/", include("reconocimiento.urls")),
+    path("api/dashboard/", include("dashboard.urls")),
     
     
      # Endpoint para generar el esquema de la API en formato YAML/JSON

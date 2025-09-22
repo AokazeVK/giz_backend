@@ -134,6 +134,7 @@ class ChecklistEvaluacion(models.Model):
         max_digits=5, decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
+    is_required = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -153,6 +154,15 @@ class RequisitoInputValor(models.Model):
         on_delete=models.CASCADE,
         related_name="valores_requisito"
     )
+    
+    empresa = models.ForeignKey(
+        "preparacion.Empresa", 
+        on_delete=models.CASCADE, 
+        related_name="valores_requisito_empresa",
+        null=True,  # Permite que la columna en la DB sea NULL
+        blank=True  # Permite que el campo esté vacío en los formularios (admin)
+    )
+    
     requisito_input = models.ForeignKey(
         "RequisitoInput",
         on_delete=models.CASCADE,
@@ -165,8 +175,42 @@ class RequisitoInputValor(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("usuario", "requisito_input", "gestion")
+        unique_together = ("empresa", "requisito_input", "gestion")
 
     def __str__(self):
         return f"{self.requisito_input.label} - {self.usuario} ({self.gestion})"
 
+class EvaluacionDato(models.Model):
+    """
+    Guarda los datos de la evaluación de un checklist por un usuario.
+    """
+    puntaje = models.DecimalField(
+        max_digits=5, decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    comentarios = models.TextField(blank=True, null=True)
+    gestion = models.CharField(max_length=10)
+
+    # Relaciones de clave foránea
+    usuario = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="evaluacion_datos"
+    )
+    empresa = models.ForeignKey(
+        "preparacion.Empresa", on_delete=models.CASCADE, related_name="evaluacion_datos"
+    )
+    checklist_evaluacion = models.ForeignKey(
+        ChecklistEvaluacion, on_delete=models.CASCADE, related_name="evaluacion_datos"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dato de Evaluación"
+        verbose_name_plural = "Datos de Evaluación"
+        unique_together = ('usuario', 'checklist_evaluacion', 'gestion')
+
+    def __str__(self):
+        return f"Dato de evaluación para {self.checklist_evaluacion.nombre} - {self.empresa.nombre} ({self.gestion})"
+
+auditlog.register(EvaluacionDato)

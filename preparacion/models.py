@@ -32,3 +32,24 @@ class Empresa(models.Model):
         return f"{self.nombre} ({self.nit})"
 
 auditlog.register(Empresa)
+
+
+class FaseEmpresa(models.Model):
+    """
+    Representa una fase de evaluación asignada a una empresa, identificada por un número.
+    """
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.CASCADE, related_name="fases_empresa"
+    )
+    fase_numero = models.IntegerField(
+        default=1, help_text="Número que representa la fase actual de la empresa."
+    )
+    gestion = models.CharField(max_length=10)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.empresa.nombre} - Fase {self.fase_numero} ({self.gestion})"
+
+auditlog.register(FaseEmpresa)

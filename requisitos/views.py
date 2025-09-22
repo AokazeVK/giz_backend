@@ -3,7 +3,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Prefetch
-
+from preparacion.models import Empresa
+from accounts.serializers import UserSerializer
+from accounts.models import User
 # Importa los nuevos modelos y serializadores
 from .models import (
     RequisitoInputValor,
@@ -13,6 +15,7 @@ from .models import (
     ChecklistEvaluacion,
     Evaluacion,
     EvaluacionFases,
+    EvaluacionDato
 )
 from .serializers import (
     RequisitoInputValorSerializer,
@@ -23,11 +26,10 @@ from .serializers import (
     EvaluacionSerializer,
     EvaluacionFasesSerializer,
     TipoSelloSerializerWithoutAllRelations,
-    UserSerializer,
+    EvaluacionDatoSerializer
 )
 from accounts.permissions import HasPermissionMap
 from accounts.utils import log_user_action
-from accounts.models import User
 
 # Importación de la tarea de Celery
 from .task import enviar_evaluacion_email
@@ -513,15 +515,87 @@ class EvaluacionViewSet(viewsets.ModelViewSet):
 
 class RequisitoInputValorViewSet(viewsets.ModelViewSet):
     serializer_class = RequisitoInputValorSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermissionMap] # 👈 Aplica los permisos
 
+    permission_code_map = { # 👈 Define el mapa de permisos
+        "list": "ver_requisitos_input_valor",
+        "retrieve": "ver_requisitos_input_valor",
+        "create": "crear_requisitos_input_valor",
+        "update": "editar_requisitos_input_valor",
+        "partial_update": "editar_requisitos_input_valor",
+        "destroy": "eliminar_requisitos_input_valor",
+        "get_postulacion_usuario": "ver_requisitos_input_valor",
+        "get_evaluacion_datos": "ver_requisitos_input_valor",
+    }
+    
     def get_queryset(self):
-        qs = RequisitoInputValor.objects.filter(usuario=self.request.user)
+        """
+        Sobrescribe el queryset para mostrar la postulación de la empresa
+        en lugar de la de un usuario individual.
+        """
+        user = self.request.user
         gestion = self.request.COOKIES.get("gestion")
+        
+        # Validar si el usuario tiene una empresa y si la gestión está presente
+        if not hasattr(user, 'empresa') or not user.empresa or not gestion:
+            return RequisitoInputValor.objects.none()
 
-        if gestion:
-            qs = qs.filter(gestion=gestion)
+        # Filtrar por la empresa del usuario y la gestión actual
+        qs = RequisitoInputValor.objects.filter(
+            empresa=user.empresa,
+            gestion=gestion,
+        )
         return qs
+
+    def create(self, request, *args, **kwargs):
+        """
+        Maneja la lógica de validación para evitar duplicados por empresa.
+        """
+        user = self.request.user
+        gestion = self.request.COOKIES.get('gestion')
+        
+        # 1. Verificar si el usuario está asociado a una empresa
+        if not hasattr(user, 'empresa') or not user.empresa:
+            return Response({"detail": "El usuario no está vinculado a una empresa."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_empresa = user.empresa
+        
+        # 2. Obtener el requisito_input desde los datos de la petición
+        requisito_input_id = request.data.get('requisito_input')
+        if not requisito_input_id:
+            return Response({"detail": "El campo 'requisito_input' es requerido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. Validar si ya existe una postulación para la empresa
+        if RequisitoInputValor.objects.filter(
+            empresa=user_empresa, 
+            requisito_input_id=requisito_input_id, 
+            gestion=gestion
+        ).exists():
+            return Response(
+                {"detail": "Su empresa ya ha enviado este requisito para esta gestión."}, 
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # 4. Si no existe, proceder con la creación
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    def perform_create(self, serializer):
+        """
+        Asigna el usuario, empresa y gestión antes de guardar el objeto.
+        """
+        user = self.request.user
+        gestion = self.request.COOKIES.get('gestion')
+        user_empresa = user.empresa
+
+        serializer.save(
+            usuario=user,
+            empresa=user_empresa,
+            gestion=gestion
+        )
 
     @action(
         detail=False,
@@ -530,17 +604,19 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
     )
     def get_postulacion_usuario(self, request, tipoSello_id=None):
         """
-        Retorna los valores de los requisitos de un usuario para un tipo de sello y gestión específicos.
+        Retorna los valores de los requisitos de una empresa para un tipo de sello y gestión específicos.
         """
-        qs = RequisitoInputValor.objects.filter(
-            usuario=self.request.user,
-            requisito_input__requisito__tipoSello__id=tipoSello_id,  # <--- Este es el filtro clave
-        )
-
+        user = request.user
         gestion = self.request.COOKIES.get("gestion")
 
-        if gestion:
-            qs = qs.filter(gestion=gestion)
+        if not hasattr(user, 'empresa') or not user.empresa:
+            return Response({"detail": "El usuario no está vinculado a una empresa."}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = RequisitoInputValor.objects.filter(
+            empresa=user.empresa, # <--- Cambio clave para filtrar por empresa
+            requisito_input__requisito__tipoSello__id=tipoSello_id,
+            gestion=gestion,
+        )
 
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
@@ -577,7 +653,6 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
         )
 
         # 2. Obtener los usuarios que han enviado datos para este tipoSello y gestión.
-        #    Esto asegura que no se muestren usuarios sin datos.
         qs = RequisitoInputValor.objects.filter(
             gestion=gestion,
             requisito_input__requisito__tipoSello__evaluaciones__in=evaluaciones,
@@ -624,52 +699,246 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
         # 4. Convertir a una lista de diccionarios para la respuesta final.
         response_data = []
         for requisito_id, data in grouped_data.items():
-            # Convertir el diccionario de usuarios a una lista
             data["usuarios_con_datos"] = list(data["usuarios_con_datos"].values())
             response_data.append(data)
 
         return Response(response_data)
 
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path="fases-evaluacion/(?P<tipoSello_id>[^/.]+)",
-    )
-    def get_fases_evaluacion(self, request, tipoSello_id=None):
-        """
-        Retorna las fases de evaluación con sus checklists asignados para el evaluador actual.
-        Filtra por la gestión de la cookie.
-        """
+class EvaluacionDatoViewSet(viewsets.ModelViewSet):
+    queryset = EvaluacionDato.objects.all()
+    serializer_class = EvaluacionDatoSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "listar_evaluacion_dato",
+        "retrieve": "listar_evaluacion_dato",
+        "create": "crear_evaluacion_dato",
+        "update": "editar_evaluacion_dato",
+        "partial_update": "editar_evaluacion_dato",
+        "destroy": "eliminar_evaluacion_dato",
+    }
+
+    def get_queryset(self):
+        qs = super().get_queryset()
         gestion = self.request.COOKIES.get("gestion")
+        if gestion:
+            qs = qs.filter(gestion=gestion, usuario=self.request.user)
+        return qs
 
-        if not gestion:
-            return Response({"detail": "La gestión es requerida."}, status=400)
-
-        # 1. Obtener las evaluaciones a las que el usuario actual está asignado en la gestión actual.
-        evaluaciones_del_evaluador = Evaluacion.objects.filter(
-            evaluadores=request.user, gestion=gestion, tipoSello_id=tipoSello_id
-        )
-
-        # 2. Filtrar las fases que pertenecen a esas evaluaciones y a la gestión actual.
-        fases_qs = EvaluacionFases.objects.filter(
-            evaluacion__in=evaluaciones_del_evaluador, gestion=gestion
-        ).prefetch_related(
-            # Optimiza la consulta precargando los checklists para cada fase.
-            Prefetch(
-                "checklists",
-                queryset=ChecklistEvaluacion.objects.all(),
-                to_attr="related_checklists",
-            )
-        )
-
-        # 3. Serializar y devolver la respuesta.
-        serializer = EvaluacionFasesSerializer(fases_qs, many=True)
-        return Response(serializer.data)
-
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["gestion"] = self.request.COOKIES.get("gestion")
+        return context
+    
     def perform_create(self, serializer):
-        gestion = self.request.COOKIES.get("gestion")
-        serializer.save(usuario=self.request.user, gestion=gestion)
+        # El serializador ya maneja la lógica de la gestión y FaseEmpresa
+        dato = serializer.save(usuario=self.request.user)
+        log_user_action(
+            self.request.user, 
+            f"Creó un registro de evaluación de dato con puntaje: {dato.puntaje} para el checklist ID: {dato.checklist_evaluacion.id}", 
+            self.request
+        )
 
     def perform_update(self, serializer):
+        # El serializador ya maneja la lógica de la gestión y FaseEmpresa
+        dato = serializer.save()
+        log_user_action(
+            self.request.user, 
+            f"Actualizó un registro de evaluación de dato con puntaje: {dato.puntaje} para el checklist ID: {dato.checklist_evaluacion.id}", 
+            self.request
+        )
+
+    def perform_destroy(self, instance):
+        log_user_action(
+            self.request.user, 
+            f"Eliminó un registro de evaluación de dato con puntaje: {instance.puntaje} para el checklist ID: {instance.checklist_evaluacion.id}", 
+            self.request
+        )
+        super().perform_destroy(instance)
+    
+    @action(detail=False, methods=['get'], url_path='por-evaluador')
+    def get_by_evaluador(self, request):
         gestion = self.request.COOKIES.get("gestion")
-        serializer.save(usuario=self.request.user, gestion=gestion)
+        usuario_evaluador = request.query_params.get('usuario_evaluador_id')
+        checklist_id = request.query_params.get('checklist_id')
+
+        if not all([gestion, usuario_evaluador, checklist_id]):
+            return Response({"error": "Parámetros 'gestion', 'usuario_evaluador_id' y 'checklist_id' son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Filtra por usuario_evaluador_id y checklist_id y gestion
+            queryset = EvaluacionDato.objects.filter(
+                usuario=usuario_evaluador,
+                checklist_evaluacion=checklist_id,
+                gestion=gestion
+            ).select_related('empresa', 'checklist_evaluacion')
+            
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'], url_path='por-empresa')
+    def get_by_empresa(self, request):
+        gestion = self.request.COOKIES.get("gestion")
+        empresa_id = request.query_params.get('empresa_id')
+        checklist_id = request.query_params.get('checklist_id')
+        
+        if not all([gestion, empresa_id, checklist_id]):
+            return Response({"error": "Parámetros 'gestion', 'empresa_id' y 'checklist_id' son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Filtra por empresa_id y checklist_id y gestion
+            queryset = EvaluacionDato.objects.filter(
+                empresa=empresa_id,
+                checklist_evaluacion=checklist_id,
+                gestion=gestion
+            ).select_related('usuario', 'checklist_evaluacion')
+            
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @action(detail=False, methods=['get'], url_path='agrupados-por-fase')
+    def evaluaciones_agrupadas(self, request):
+        """
+        Retorna los registros de EvaluacionDato agrupados por fase de evaluación.
+        """
+        gestion = self.request.COOKIES.get('gestion')
+        empresa_id = request.query_params.get('empresa_id')
+        checklist_id = request.query_params.get('checklist_id')
+        usuario_id = request.query_params.get('usuario_id')
+        
+        if not all([gestion, empresa_id, checklist_id, usuario_id]):
+            return Response(
+                {"error": "Los parámetros 'empresa_id', 'checklist_id' y 'usuario_id' son requeridos."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            # Obtener los datos de evaluación con las relaciones necesarias
+            queryset = EvaluacionDato.objects.filter(
+                empresa__id=empresa_id,
+                checklist_evaluacion__id=checklist_id,
+                usuario__id=usuario_id,
+                gestion=gestion
+            ).select_related(
+                'usuario', 
+                'empresa', 
+                'checklist_evaluacion__evaluacion_fase',
+            )
+
+            # Agrupar los datos por fase
+            fases_agrupadas = {}
+            for dato in queryset:
+                fase = dato.checklist_evaluacion.evaluacion_fase
+                if fase.nombre not in fases_agrupadas:
+                    fases_agrupadas[fase.nombre] = {
+                        "id_fase": fase.id,
+                        "nombre_fase": fase.nombre,
+                        "evaluaciones": []
+                    }
+                
+                # Serializar el dato para un formato de respuesta detallado
+                evaluacion_data = {
+                    "id_evaluacion_dato": dato.id,
+                    "puntaje": dato.puntaje,
+                    "comentarios": dato.comentarios,
+                    "nombre_empresa": dato.empresa.nombre,
+                    "usuario_calificador": dato.usuario.email,
+                    "checklist": {
+                        "id": dato.checklist_evaluacion.id,
+                        "nombre": dato.checklist_evaluacion.nombre,
+                        "porcentaje_maximo": dato.checklist_evaluacion.porcentaje
+                    }
+                }
+                fases_agrupadas[fase.nombre]["evaluaciones"].append(evaluacion_data)
+            
+            # Convertir el diccionario a una lista para la respuesta final
+            response_data = list(fases_agrupadas.values())
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Ocurrió un error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    @action(detail=False, methods=['get'], url_path='por-empresa-agrupado')
+    def evaluacion_empresa(self, request):
+        """
+        Retorna los registros de EvaluacionDato para una empresa específica, agrupados por fase.
+        Requiere el id de la empresa y la gestión de la cookie.
+        """
+        gestion = self.request.COOKIES.get('gestion')
+        empresa_id = request.query_params.get('empresa_id')
+
+        if not all([gestion, empresa_id]):
+            return Response(
+                {"error": "Los parámetros 'empresa_id' y 'gestion' son requeridos."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Filtra por el ID de la empresa y la gestión
+            queryset = EvaluacionDato.objects.filter(
+                empresa__id=empresa_id,
+                gestion=gestion
+            ).select_related(
+                'usuario',
+                'empresa',
+                'checklist_evaluacion__evaluacion_fase',
+            ).order_by('checklist_evaluacion__evaluacion_fase__numero_fase')
+
+            # Si no hay datos, retorna un mensaje claro
+            if not queryset.exists():
+                return Response(
+                    {"mensaje": "No se encontraron datos de evaluación para esta empresa en la gestión actual."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Agrupar los datos por fase
+            fases_agrupadas = {}
+            for dato in queryset:
+                fase = dato.checklist_evaluacion.evaluacion_fase
+                fase_key = f"{fase.numero_fase} - {fase.nombre}"
+                
+                if fase_key not in fases_agrupadas:
+                    fases_agrupadas[fase_key] = {
+                        "numero_fase": fase.numero_fase,
+                        "nombre_fase": fase.nombre,
+                        "evaluaciones": []
+                    }
+                
+                # Serializar el dato para un formato de respuesta detallado
+                evaluacion_data = {
+                    "id_evaluacion_dato": dato.id,
+                    "puntaje": dato.puntaje,
+                    "comentarios": dato.comentarios,
+                    "nombre_empresa": dato.empresa.nombre,
+                    "usuario_calificador": dato.usuario.email,
+                    "checklist": {
+                        "id": dato.checklist_evaluacion.id,
+                        "nombre": dato.checklist_evaluacion.nombre,
+                        "porcentaje_maximo": dato.checklist_evaluacion.porcentaje
+                    }
+                }
+                fases_agrupadas[fase_key]["evaluaciones"].append(evaluacion_data)
+            
+            # Convertir el diccionario a una lista para la respuesta final
+            response_data = list(fases_agrupadas.values())
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Empresa.DoesNotExist:
+            return Response(
+                {"error": "La empresa especificada no existe."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Ocurrió un error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+

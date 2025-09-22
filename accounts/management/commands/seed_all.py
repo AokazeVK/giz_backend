@@ -1,7 +1,9 @@
+import sys
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from accounts.models import Role, Permission
+from dashboard.models import Departamento
 
 # Estructura de árbol con TODOS los permisos de las vistas
 TREE = {
@@ -20,6 +22,7 @@ TREE = {
                     "label": "Cambiar Contraseña Usuarios",
                     "code": "cambiar_contrasena_usuarios",
                 },
+                {"label": "Ver Usuario", "code": "ver_usuario"},
             ],
         },
         {
@@ -31,6 +34,7 @@ TREE = {
                 {"label": "Eliminar Roles", "code": "eliminar_roles"},
                 {"label": "Listar Roles", "code": "listar_roles"},
                 {"label": "Editar Permisos Rol", "code": "editar_permisos_roles"},
+                {"label": "Ver Rol", "code": "ver_rol"},
             ],
         },
         {
@@ -141,6 +145,16 @@ TREE = {
                             "label": "Listar Archivos",
                             "code": "listar_archivos_fechas_convocatorias",
                         },
+                    ],
+                },
+                {
+                    "label": "Departamentos",
+                    "code": "departamentos",
+                    "children": [
+                        {"label": "Crear Departamentos", "code": "crear_departamentos"},
+                        {"label": "Editar Departamentos", "code": "editar_departamentos"},
+                        {"label": "Eliminar Departamentos", "code": "eliminar_departamentos"},
+                        {"label": "Listar Departamentos", "code": "listar_departamentos"},
                     ],
                 },
             ],
@@ -341,6 +355,10 @@ TREE = {
 
 
 def upsert_permissions(node, parent=None):
+    """
+    Función recursiva para crear o actualizar los permisos
+    basándose en la estructura de árbol definida.
+    """
     obj, _ = Permission.objects.get_or_create(
         code=node["code"], defaults={"label": node["label"], "parent": parent}
     )
@@ -353,13 +371,27 @@ def upsert_permissions(node, parent=None):
 
 
 class Command(BaseCommand):
-    help = "Crea/actualiza los permisos, el rol de Super Admin y un superusuario."
+    help = "Crea/actualiza los permisos, el rol de Super Admin, un superusuario y los departamentos."
 
     @transaction.atomic
     def handle(self, *args, **options):
+        # Datos para el superusuario
         email = "admin@mail.com"
         password = "Hola1234"
         username = "superadmin"
+
+        # Nombres de los departamentos a crear
+        departamentos_bolivia = [
+            "Beni",
+            "Chuquisaca",
+            "Cochabamba",
+            "La Paz",
+            "Oruro",
+            "Pando",
+            "Potosí",
+            "Santa Cruz",
+            "Tarija",
+        ]
 
         self.stdout.write(self.style.NOTICE("Iniciando el proceso de seeding..."))
 
@@ -392,7 +424,25 @@ class Command(BaseCommand):
             )
         )
 
-        # 4. Crea el usuario Super Admin
+        # 4. Crea los departamentos
+        self.stdout.write(self.style.NOTICE("Creando los departamentos..."))
+        for depto_name in departamentos_bolivia:
+            depto, created = Departamento.objects.get_or_create(name=depto_name)
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(f'Departamento "{depto.name}" creado.')
+                )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'El departamento "{depto.name}" ya existe. Saltando.'
+                    )
+                )
+        self.stdout.write(
+            self.style.SUCCESS("Departamentos creados/actualizados exitosamente.")
+        )
+
+        # 5. Crea el usuario Super Admin
         User = get_user_model()
         if User.objects.filter(email=email).exists():
             self.stdout.write(
