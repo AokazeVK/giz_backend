@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background: #fff; padding: 20px;
+                     border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { text-align: center; border-bottom: 2px solid #3498db; margin-bottom: 20px; }
+        .header h1 { color: #2c3e50; }
+        .content { color: #34495e; line-height: 1.6; }
+        .details { background: #ecf0f1; padding: 15px; border-radius: 6px; margin-top: 20px; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>{{ subject }}</h1>
+    </div>
+    <div class="content">
+        <p>Estimado(a) representante de <strong>{{ empresa.nombre }}</strong>,</p>
+
+        {% if solicitud.estado == "APROBADO" %}
+            <p>Nos complace informarle que su solicitud de asesoramiento
+               <strong>{{ solicitud.asesoramiento.nombre }}</strong> ha sido
+               <span style="color:green;font-weight:bold;">APROBADA</span>.</p>
+            <p><strong>Fecha aprobada:</strong> {{ solicitud.fechaAprobada }}</p>
+        {% elif solicitud.estado == "RECHAZADO" %}
+            <p>Lamentamos informarle que su solicitud de asesoramiento
+               <strong>{{ solicitud.asesoramiento.nombre }}</strong> ha sido
+               <span style="color:red;font-weight:bold;">RECHAZADA</span>.</p>
+        {% else %}
+            <p>Su solicitud está en estado: {{ solicitud.estado }}</p>
+        {% endif %}
+
+        <div class="details">
+            <p><strong>Fecha tentativa inicial:</strong> {{ solicitud.fechaTentativaInicial }}</p>
+            <p><strong>Fecha tentativa final:</strong> {{ solicitud.fechaTentativaFinal }}</p>
+        </div>
+    </div>
+    <div class="footer">
+        <p>&copy; {{ year }} Nuestro Sistema. Todos los derechos reservados.</p>
+    </div>
+</div>
+</body>
+</html>
