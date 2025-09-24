@@ -2,6 +2,7 @@
 from django.db import models
 from auditlog.registry import auditlog
 from requisitos.models import TipoSello
+from accounts.models import User
 
 
 # ============================
@@ -90,6 +91,11 @@ class FaseEmpresa(models.Model):
     fase_numero = models.IntegerField(
         default=1, help_text="Número que representa la fase actual de la empresa."
     )
+    # Nuevo campo para registrar al evaluador que cambió la fase
+    evaluador = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="fases_empresa_asignadas"
+    )
     gestion = models.CharField(max_length=10)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -97,6 +103,7 @@ class FaseEmpresa(models.Model):
 
     def __str__(self):
         return f"{self.empresa.nombre} - Fase {self.fase_numero} ({self.gestion})"
+
 
 
 auditlog.register(FaseEmpresa)
@@ -110,6 +117,8 @@ class SolicitudAsesoramiento(models.Model):
         ("SOLICITADO", "Solicitado"),
         ("APROBADO", "Aprobado"),
         ("RECHAZADO", "Rechazado"),
+        ("COMPLETADO", "Completado"),
+        ("CANCELADO", "Cancelado"),
     ]
 
     empresa = models.ForeignKey(
@@ -132,6 +141,49 @@ class SolicitudAsesoramiento(models.Model):
 
 
 auditlog.register(SolicitudAsesoramiento)
+
+
+
+# ============================
+#   ARCHIVOS ASESORAMIENTO
+# ============================
+class ArchivoAsesoramiento(models.Model):
+    asesoramiento = models.ForeignKey(
+        "Asesoramiento", on_delete=models.CASCADE, related_name="archivos"
+    )
+    nombre = models.CharField(max_length=255)
+    file = models.FileField(upload_to="asesoramientos/files/")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.nombre} - {self.asesoramiento.nombre}"
+
+auditlog.register(ArchivoAsesoramiento)
+
+# ============================
+#   ENCARGADOS ASESORAMIENTO
+# ============================
+class EncargadoAsesoramiento(models.Model):
+    asesoramiento = models.ForeignKey(
+        "Asesoramiento", on_delete=models.CASCADE, related_name="encargados_asesoramiento"
+    )
+    nombre = models.CharField(max_length=200)
+    cargo = models.CharField(max_length=150, blank=True, null=True)
+    correo = models.EmailField(unique=True)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.asesoramiento.nombre} - {self.encargado.nombre if self.encargado else 'Sin Encargado'}"
+
+auditlog.register(EncargadoAsesoramiento)
+
+
 
 class PublicacionEmpresaComunidad(models.Model):
     empresa = models.ForeignKey(

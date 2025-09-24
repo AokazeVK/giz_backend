@@ -104,6 +104,13 @@ class EvaluacionFases(models.Model):
     evaluacion = models.ForeignKey(
         Evaluacion, on_delete=models.CASCADE, related_name="fases"
     )
+    # Nuevo campo para el evaluador
+    evaluador = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="fases_evaluador",
+        limit_choices_to={'role__name': 'Evaluador'}
+    )
+    # ... otros campos
     nombre = models.CharField(max_length=100)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()

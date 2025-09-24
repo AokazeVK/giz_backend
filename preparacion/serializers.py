@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from requisitos.models import TipoSello
 from accounts.models import User
+from accounts.serializers import UserSerializer
 from .models import (
     Empresa,
     FaseEmpresa,
@@ -9,7 +10,46 @@ from .models import (
     Asesoramiento,
     SolicitudAsesoramiento,
     PublicacionEmpresaComunidad,
+    ArchivoAsesoramiento,
+    EncargadoAsesoramiento
 )
+
+# ============================
+#   SERIALIZERS DE ASESORAMIENTO
+# ============================
+class ArchivoAsesoramientoSerializer(serializers.ModelSerializer):
+    url_file = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = ArchivoAsesoramiento
+        fields = ["id", "asesoramiento", "nombre", "file", "url_file", "is_active", "created_at"]
+        read_only_fields = ["id", "url_file", "is_active", "created_at"]
+
+    def get_url_file(self, obj):
+        request = self.context.get("request")
+        if request and obj.file:
+            # Asegura que la URL sea absoluta para que funcione en correos, etc.
+            return request.build_absolute_uri(obj.file.url)
+        return None
+
+
+class EncargadoAsesoramientoSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = EncargadoAsesoramiento
+        fields = ["id", "asesoramiento", "nombre", "cargo", "correo", "telefono", "is_active"]
+        read_only_fields = ["id"]
+
+
+# Modifica el AsesoramientoSerializer para incluir los nuevos campos anidados
+class AsesoramientoSerializer(serializers.ModelSerializer):
+    archivos = ArchivoAsesoramientoSerializer(many=True, read_only=True)
+    encargados_asesoramiento = EncargadoAsesoramientoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Asesoramiento
+        fields = ["id", "nombre", "descripcion", "foto", "is_active", "created_at", "updated_at", "archivos", "encargados_asesoramiento"]
+        read_only_fields = ["id", "created_at", "updated_at", "archivos", "encargados_asesoramiento"]
 
 
 # ================
@@ -34,9 +74,11 @@ class AsesoramientoSerializer(serializers.ModelSerializer):
 # FASE EMPRESA
 # ================
 class FaseEmpresaSerializer(serializers.ModelSerializer):
+    # Campo para incluir los datos del evaluador
+    evaluador = UserSerializer(read_only=True)
     class Meta:
         model = FaseEmpresa
-        fields = ["id", "fase_numero", "gestion", "is_active", "created_at"]
+        fields = ["id", "fase_numero", "gestion", "evaluador", "is_active", "created_at"]
 
 
 # ================

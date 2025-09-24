@@ -10,7 +10,11 @@ class Ministerio(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     direccion = models.CharField(max_length=300, blank=True, null=True)
     is_active = models.BooleanField(default=True)  # toggle activar/desactivar
-
+       # Nuevo campo opcional
+    fecha_confirmacion_recepcion_convocatoria = models.DateField(
+        null=True, blank=True,
+        help_text="Fecha en que se confirmó la recepción de la convocatoria."
+    )
     def __str__(self):
         return self.nombre
 

@@ -628,83 +628,101 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
     )
     def get_evaluacion_datos(self, request):
         """
-        Retorna los datos de los Requisitos de usuarios agrupados por requisito.
-        Solo accesible si el usuario logueado es evaluador de ese tipoSello y gestión.
+        Devuelve los datos de postulación de empresas organizados por requisito
+        y usuario, para la evaluación de los evaluadores.
         """
-        gestion = self.request.COOKIES.get("gestion")
-        # 1. Verificar si el usuario actual es un evaluador asignado a la evaluación.
-        evaluacion_exists = Evaluacion.objects.filter(
-            gestion=gestion,
-            evaluadores=request.user,
-        ).exists()
+        # 1. Validación inicial
+        evaluador = request.user
+        gestion = request.COOKIES.get("gestion")
+        if not gestion:
+            return Response({"error": "La gestión es obligatoria para la evaluación."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        print(gestion)
-
-        if not evaluacion_exists:
-            return Response(
-                {"detail": "No tienes permiso para ver esta información."}, status=403
-            )
-
-        evaluador = User.objects.get(
-            role__name='Evaluador',
-            id=request.user.id
-        )
-
+        # 2. Obtener las evaluaciones asignadas al evaluador para la gestión actual
         evaluaciones = Evaluacion.objects.filter(
-            evaluadores__in=[evaluador]
-        )
-
-        # 2. Obtener los usuarios que han enviado datos para este tipoSello y gestión.
-        qs = RequisitoInputValor.objects.filter(
+            evaluadores=evaluador,
             gestion=gestion,
-            requisito_input__requisito__tipoSello__evaluaciones__in=evaluaciones,
-        ).select_related(
-            "usuario","requisito_input", "requisito_input__requisito",
+            is_active=True
         )
 
-        # 3. Agrupar los datos para la respuesta.
-        grouped_data = {}
-        for item in qs:
-            requisito_id = item.requisito_input.requisito.id
-            requisito_nombre = item.requisito_input.requisito.nombre
-            tipo_sello = item.requisito_input.requisito.tipoSello.nombre
-            tipo_sello_id = item.requisito_input.requisito.tipoSello.id
-            usuario_id = item.usuario.id
-            usuario_email = item.usuario.email
-            empresa = item.usuario.empresa.nombre
+        if not evaluaciones.exists():
+            return Response({"error": "No tiene evaluaciones asignadas para esta gestión."},
+                            status=status.HTTP_403_FORBIDDEN)
+        
+        tipos_sellos_ids = evaluaciones.values_list('tipoSello__id', flat=True)
 
-            # Crear la estructura si no existe
+        # 3. Consulta optimizada de los datos de los requisitos
+        requisito_valores = RequisitoInputValor.objects.filter(
+            requisito_input__requisito__tipoSello__id__in=tipos_sellos_ids,
+            gestion=gestion,
+            empresa__evaluacion_asignada__in=evaluaciones
+        ).select_related(
+            'requisito_input__requisito__tipoSello',
+            'requisito_input__requisito',
+            'requisito_input',
+            'usuario__empresa',
+            'empresa', 
+            'usuario__role'
+        ).order_by(
+            'requisito_input__requisito__id',
+            'empresa__id'
+        )
+
+        # 4. Procesar y agrupar los datos
+        grouped_data = {}
+        for valor in requisito_valores:
+            requisito_id = valor.requisito_input.requisito.id
+            requisito_nombre = valor.requisito_input.requisito.nombre
+
             if requisito_id not in grouped_data:
                 grouped_data[requisito_id] = {
                     "requisito_id": requisito_id,
                     "requisito_nombre": requisito_nombre,
-                    
-                    "usuarios_con_datos": {},
+                    "usuarios_con_datos": {}
                 }
 
+            usuario_id = valor.usuario.id
             if usuario_id not in grouped_data[requisito_id]["usuarios_con_datos"]:
+                # Obtener la empresa y sus fases asociadas
+                empresa_id = valor.empresa.id if valor.empresa else None
+                empresa_nombre = valor.empresa.nombre if valor.empresa else None
+
+                fases_empresa_qs = FaseEmpresa.objects.filter(
+                    empresa=valor.empresa,
+                    gestion=gestion
+                ).select_related('evaluador')
+                
+                fases_empresa_data = [
+                    {
+                        "id": fase.id,
+                        "fase_numero": fase.fase_numero,
+                        "evaluador_id": fase.evaluador.id if fase.evaluador else None,
+                        "evaluador_nombre": fase.evaluador.username if fase.evaluador else None
+                    } for fase in fases_empresa_qs
+                ]
+
                 grouped_data[requisito_id]["usuarios_con_datos"][usuario_id] = {
                     "usuario_id": usuario_id,
-                    "usuario_email": usuario_email,
-                    "tipo_sello":tipo_sello,
-                    "tipo_sello_id":tipo_sello_id,
-                    "empresa":empresa,
-                    "valores_requisito": [],
+                    "usuario_email": valor.usuario.email,
+                    "tipo_sello": valor.requisito_input.requisito.tipoSello.nombre,
+                    "tipo_sello_id": valor.requisito_input.requisito.tipoSello.id,
+                    "empresa": empresa_nombre,
+                    "empresa_id": empresa_id,
+                    "fases_empresa": fases_empresa_data,
+                    "valores_requisito": []
                 }
 
-            # Serializar el valor y agregarlo
-            serializer = self.get_serializer(item)
-            grouped_data[requisito_id]["usuarios_con_datos"][usuario_id][
-                "valores_requisito"
-            ].append(serializer.data)
+            valor_data = RequisitoInputValorSerializer(valor).data
+            grouped_data[requisito_id]["usuarios_con_datos"][usuario_id]["valores_requisito"].append(valor_data)
 
-        # 4. Convertir a una lista de diccionarios para la respuesta final.
-        response_data = []
-        for requisito_id, data in grouped_data.items():
-            data["usuarios_con_datos"] = list(data["usuarios_con_datos"].values())
-            response_data.append(data)
+        # 5. Reestructurar la salida a un formato de lista
+        final_list = []
+        for _, data in grouped_data.items():
+            usuarios_list = list(data["usuarios_con_datos"].values())
+            data["usuarios_con_datos"] = usuarios_list
+            final_list.append(data)
 
-        return Response(response_data)
+        return Response(final_list)
     
     @action(
         detail=False,

@@ -1,17 +1,40 @@
+# apps/preparacion/views.py
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
-from accounts.models import User
+# Django y librerías de terceros
+from django.db.models import Prefetch
+
+# Módulos locales
+from accounts.models import User, Encargado, Ministerio
 from accounts.serializers import UserSerializer
-from .models import Empresa, FaseEmpresa, Asesoramiento, SolicitudAsesoramiento, PublicacionEmpresaComunidad # 👈 Asegúrate de importar el nuevo modelo
-from .serializers import EmpresaSerializer, FaseEmpresaSerializer, AsesoramientoSerializer, SolicitudAsesoramientoSerializer, PublicacionEmpresaComunidadSerializer  # 👈 Asegúrate de importar el nuevo serializer
 from accounts.permissions import HasPermissionMap
 from accounts.utils import log_user_action
-from rest_framework.permissions import IsAuthenticated
 from dashboard.models import Departamento
 from dashboard.serializers import DepartamentoSerializer
+from .models import (
+    Empresa,
+    FaseEmpresa,
+    Asesoramiento,
+    SolicitudAsesoramiento,
+    PublicacionEmpresaComunidad,
+    ArchivoAsesoramiento,
+    EncargadoAsesoramiento
+)
+from .serializers import (
+    EmpresaSerializer,
+    FaseEmpresaSerializer,
+    AsesoramientoSerializer,
+    SolicitudAsesoramientoSerializer,
+    PublicacionEmpresaComunidadSerializer,
+    ArchivoAsesoramientoSerializer,
+    EncargadoAsesoramientoSerializer
+)
 from .task import enviar_solicitud_asesoramiento_email
+
 class EmpresaViewSet(viewsets.ModelViewSet):
     queryset = Empresa.objects.all()
     serializer_class = EmpresaSerializer
@@ -80,6 +103,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
 
         serializer = FaseEmpresaSerializer(fases, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
     @action(detail=False, methods=['get'], url_path='listar-departamentos')
     def listar_departamentos(self, request):
         """
@@ -101,14 +125,56 @@ class AsesoramientoViewSet(viewsets.ModelViewSet):
     permission_code_map = {
         "list": "ver_asesoramientos",
         "retrieve": "ver_asesoramientos",
+        "create": "crear_asesoramientos",
+        "update": "editar_asesoramientos",
+        "partial_update": "editar_asesoramientos",
+        "destroy": "eliminar_asesoramientos",
+        "toggle_estado": "editar_asesoramientos",
         "list_publicos": "ver_asesoramientos_publicos",
+        "list_encargados_asesoramiento": "listar_encargados_asesoramiento",
+        "list_archivos_asesoramiento": "listar_archivos_asesoramiento",
     }
+    
+    def perform_create(self, serializer):
+        asesoramiento = serializer.save()
+        log_user_action(self.request.user, f"Creó el Asesoramiento '{asesoramiento.nombre}'", self.request)
+
+    def perform_update(self, serializer):
+        asesoramiento = serializer.save()
+        log_user_action(self.request.user, f"Editó el Asesoramiento '{asesoramiento.nombre}'", self.request)
+
+    def perform_destroy(self, instance):
+        log_user_action(self.request.user, f"Eliminó el Asesoramiento '{instance.nombre}'", self.request)
+        super().perform_destroy(instance)
+    
+    @action(detail=True, methods=["post"], url_path="toggle-estado")
+    def toggle_estado(self, request, pk=None):
+        asesoramiento = self.get_object()
+        asesoramiento.is_active = not asesoramiento.is_active
+        asesoramiento.save()
+        status_message = "activo" if asesoramiento.is_active else "inactivo"
+        log_user_action(request.user, f"Cambió estado de Asesoramiento '{asesoramiento.nombre}' a '{status_message}'", request)
+        return Response({"message": f"Asesoramiento {asesoramiento.nombre} ahora está {status_message}."})
 
     @action(detail=False, methods=["get"], url_path="publicos")
     def list_publicos(self, request):
         qs = Asesoramiento.objects.filter(is_active=True)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=["get"], url_path="encargados")
+    def list_encargados_asesoramiento(self, request, pk=None):
+        asesoramiento = self.get_object()
+        encargados = asesoramiento.encargados_asesoramiento.filter(is_active=True)
+        serializer = EncargadoAsesoramientoSerializer(encargados, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="archivos")
+    def list_archivos_asesoramiento(self, request, pk=None):
+        asesoramiento = self.get_object()
+        archivos = asesoramiento.archivos.filter(is_active=True)
+        serializer = ArchivoAsesoramientoSerializer(archivos, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
 # ========================
@@ -124,6 +190,8 @@ class SolicitudAsesoramientoViewSet(viewsets.ModelViewSet):
         "create": "crear_solicitudes_asesoramiento",
         "aprobar": "aprobar_solicitudes_asesoramiento",
         "rechazar": "rechazar_solicitudes_asesoramiento",
+        "completar": "completar_solicitudes_asesoramiento",  # Nuevo permiso
+        "cancelar": "cancelar_solicitudes_asesoramiento",    # Nuevo permiso
     }
 
     @action(detail=True, methods=["patch"])
@@ -154,6 +222,26 @@ class SolicitudAsesoramientoViewSet(viewsets.ModelViewSet):
 
         enviar_solicitud_asesoramiento_email.delay(solicitud.id)
 
+        return Response(SolicitudAsesoramientoSerializer(solicitud).data)
+
+    @action(detail=True, methods=["patch"])
+    def completar(self, request, pk=None):
+        solicitud = self.get_object()
+        solicitud.estado = "COMPLETADO"
+        solicitud.save()
+        log_user_action(request.user, f"Marcó como completada la solicitud de asesoramiento para la empresa '{solicitud.empresa.nombre}'", self.request)
+        
+        # No se envía correo electrónico, solo se actualiza el estado.
+        return Response(SolicitudAsesoramientoSerializer(solicitud).data)
+
+    @action(detail=True, methods=["patch"])
+    def cancelar(self, request, pk=None):
+        solicitud = self.get_object()
+        solicitud.estado = "CANCELADO"
+        solicitud.save()
+        log_user_action(request.user, f"Canceló la solicitud de asesoramiento para la empresa '{solicitud.empresa.nombre}'", self.request)
+
+        # No se envía correo electrónico, solo se actualiza el estado.
         return Response(SolicitudAsesoramientoSerializer(solicitud).data)
     
 class PublicacionEmpresaComunidadViewSet(viewsets.ModelViewSet):
@@ -213,3 +301,67 @@ class PublicacionEmpresaComunidadViewSet(viewsets.ModelViewSet):
         qs = qs.order_by("-created_at")
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ============================
+#   VISTA PARA ARCHIVOS DE ASESORAMIENTO
+# ============================
+class ArchivoAsesoramientoViewSet(viewsets.ModelViewSet):
+    queryset = ArchivoAsesoramiento.objects.all().order_by("id")
+    serializer_class = ArchivoAsesoramientoSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "listar_archivos_asesoramiento",
+        "retrieve": "listar_archivos_asesoramiento",
+        "create": "crear_archivos_asesoramiento",
+        "destroy": "eliminar_archivos_asesoramiento",
+    }
+
+    def perform_create(self, serializer):
+        archivo = serializer.save()
+        log_user_action(self.request.user, f"Subió archivo '{archivo.nombre}' (asesoramiento_id={archivo.asesoramiento_id})", self.request)
+
+    def perform_destroy(self, instance):
+        log_user_action(self.request.user, f"Eliminó archivo '{instance.nombre}' (asesoramiento_id={instance.asesoramiento_id})", self.request)
+        super().perform_destroy(instance)
+
+
+# ============================
+#   VISTA PARA ENCARGADOS DE ASESORAMIENTO
+# ============================
+class EncargadoAsesoramientoViewSet(viewsets.ModelViewSet):
+    queryset = EncargadoAsesoramiento.objects.all().order_by("id")
+    serializer_class = EncargadoAsesoramientoSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "listar_encargados_asesoramiento",
+        "retrieve": "listar_encargados_asesoramiento",
+        "create": "crear_encargados_asesoramiento",
+        "update": "editar_encargados_asesoramiento",
+        "partial_update": "editar_encargados_asesoramiento",
+        "destroy": "eliminar_encargados_asesoramiento",
+        "toggle_estado": "editar_encargados_asesoramiento"
+    }
+
+    def perform_create(self, serializer):
+        encargado_as = serializer.save()
+        log_user_action(self.request.user, f"Creó Encargado de Asesoramiento '{encargado_as.nombre}' para '{encargado_as.asesoramiento.nombre}'", self.request)
+
+    def perform_update(self, serializer):
+        encargado_as = serializer.save()
+        log_user_action(self.request.user, f"Editó Encargado de Asesoramiento '{encargado_as.nombre}' para '{encargado_as.asesoramiento.nombre}'", self.request)
+
+    def perform_destroy(self, instance):
+        log_user_action(self.request.user, f"Eliminó Encargado de Asesoramiento '{instance.nombre}' para '{instance.asesoramiento.nombre}'", self.request)
+        super().perform_destroy(instance)
+    
+    @action(detail=True, methods=['post'])
+    def toggle_estado(self, request, pk=None):
+        encargado_as = self.get_object()
+        encargado_as.is_active = not encargado_as.is_active
+        encargado_as.save()
+        status_message = "activo" if encargado_as.is_active else "inactivo"
+        log_user_action(request.user, f"Cambió estado de Encargado de Asesoramiento '{encargado_as.nombre}' a '{status_message}'", request)
+        return Response({'message': f'Encargado de Asesoramiento ahora está {status_message}.'}, status=status.HTTP_200_OK)
