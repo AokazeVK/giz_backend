@@ -638,6 +638,8 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
             evaluadores=request.user,
         ).exists()
 
+        print(gestion)
+
         if not evaluacion_exists:
             return Response(
                 {"detail": "No tienes permiso para ver esta información."}, status=403
@@ -703,6 +705,42 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
             response_data.append(data)
 
         return Response(response_data)
+    
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="fases-evaluacion/(?P<tipoSello_id>[^/.]+)",
+    )
+    def get_fases_evaluacion(self, request, tipoSello_id=None):
+        """
+        Retorna las fases de evaluación con sus checklists asignados para el evaluador actual.
+        Filtra por la gestión de la cookie.
+        """
+        gestion = self.request.COOKIES.get("gestion")
+
+        if not gestion:
+            return Response({"detail": "La gestión es requerida."}, status=400)
+
+        # 1. Obtener las evaluaciones a las que el usuario actual está asignado en la gestión actual.
+        evaluaciones_del_evaluador = Evaluacion.objects.filter(
+            evaluadores=request.user, gestion=gestion, tipoSello_id=tipoSello_id
+        )
+
+        # 2. Filtrar las fases que pertenecen a esas evaluaciones y a la gestión actual.
+        fases_qs = EvaluacionFases.objects.filter(
+            evaluacion__in=evaluaciones_del_evaluador, gestion=gestion
+        ).prefetch_related(
+            # Optimiza la consulta precargando los checklists para cada fase.
+            Prefetch(
+                "checklists",
+                queryset=ChecklistEvaluacion.objects.all(),
+                to_attr="related_checklists",
+            )
+        )
+
+        # 3. Serializar y devolver la respuesta.
+        serializer = EvaluacionFasesSerializer(fases_qs, many=True)
+        return Response(serializer.data)
 
 class EvaluacionDatoViewSet(viewsets.ModelViewSet):
     queryset = EvaluacionDato.objects.all()
@@ -889,7 +927,7 @@ class EvaluacionDatoViewSet(viewsets.ModelViewSet):
                 'usuario',
                 'empresa',
                 'checklist_evaluacion__evaluacion_fase',
-            ).order_by('checklist_evaluacion__evaluacion_fase__numero_fase')
+            ).order_by('checklist_evaluacion__evaluacion_fase__id')
 
             # Si no hay datos, retorna un mensaje claro
             if not queryset.exists():
@@ -902,11 +940,11 @@ class EvaluacionDatoViewSet(viewsets.ModelViewSet):
             fases_agrupadas = {}
             for dato in queryset:
                 fase = dato.checklist_evaluacion.evaluacion_fase
-                fase_key = f"{fase.numero_fase} - {fase.nombre}"
+                fase_key = f"{fase.id} - {fase.nombre}"
                 
                 if fase_key not in fases_agrupadas:
                     fases_agrupadas[fase_key] = {
-                        "numero_fase": fase.numero_fase,
+                        "id": fase.id,
                         "nombre_fase": fase.nombre,
                         "evaluaciones": []
                     }

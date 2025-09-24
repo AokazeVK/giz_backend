@@ -256,6 +256,27 @@ TREE = {
                     ],
                 },
                 {
+                    "label": "Requisito Input Valor",
+                    "code": "requisito_input_valor",
+                    "children": [
+                        {"label": "Ver Requisitos Input Valor", "code": "ver_requisitos_input_valor"},
+                        {"label": "Crear Requisitos Input Valor", "code": "crear_requisitos_input_valor"},
+                        {"label": "Editar Requisitos Input Valor", "code": "editar_requisitos_input_valor"},
+                        {"label": "Eliminar Requisitos Input Valor", "code": "eliminar_requisitos_input_valor"},
+                    ],
+                },
+                # Aquí se añadieron los nuevos permisos para Evaluacion Dato
+                {
+                    "label": "Evaluacion Dato",
+                    "code": "evaluacion_dato",
+                    "children": [
+                        {"label": "Listar Evaluacion Dato", "code": "listar_evaluacion_dato"},
+                        {"label": "Crear Evaluacion Dato", "code": "crear_evaluacion_dato"},
+                        {"label": "Editar Evaluacion Dato", "code": "editar_evaluacion_dato"},
+                        {"label": "Eliminar Evaluacion Dato", "code": "eliminar_evaluacion_dato"},
+                    ],
+                },
+                {
                     "label": "Checklist de Evaluación",
                     "code": "checklist",
                     "children": [

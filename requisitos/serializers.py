@@ -207,7 +207,7 @@ class RequisitoInputValorSerializer(serializers.ModelSerializer):
         user_empresa = user.empresa
         
         # Obtener la gestión del contexto
-        gestion = self.context.get('gestion')
+        gestion = self.context['request'].COOKIES.get('gestion')
         if not gestion:
             raise serializers.ValidationError({"detail": "No se pudo obtener la gestión de las cookies."})
 
@@ -234,7 +234,8 @@ class RequisitoInputValorSerializer(serializers.ModelSerializer):
 class EvaluacionDatoSerializer(serializers.ModelSerializer):
     class Meta:
         model = EvaluacionDato
-        fields = ['id', 'puntaje', 'comentarios', 'usuario', 'empresa', 'checklist_evaluacion', 'gestion']
+        fields = ['id', 'puntaje', 'comentarios', 'empresa', 'checklist_evaluacion']
+        read_only_fields = ["id", "usuario", "gestion", "created_at"]
 
     def validate(self, data):
         # Valida que el puntaje no sobrepase el porcentaje del checklist
@@ -265,7 +266,7 @@ class EvaluacionDatoSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Obtiene la gestión de la cookie del request, pasada por el contexto
-        gestion = self.context.get('gestion')
+        gestion = self.context['request'].COOKIES.get('gestion')
         if not gestion:
             raise serializers.ValidationError("No se pudo obtener la gestión de las cookies.")
         
