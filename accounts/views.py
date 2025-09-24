@@ -128,14 +128,31 @@ def refresh_token_view(request):
 def profile_view(request):
     user = request.user
     
-    # Usa el UserSerializer para obtener toda la info del usuario, incluyendo la empresa
+    # Serializamos datos base del usuario (incluye empresa, etc.)
     serializer = UserSerializer(user)
-    
     response_data = serializer.data
+    
+    # Agregamos cookies personalizadas
     response_data['gestion'] = request.COOKIES.get("gestion")
-
-    # Si necesitas acceso al ID de la empresa por separado en el frontend
     response_data['empresa_id'] = request.COOKIES.get("empresa_id")
+    
+    # Avatar (si existe)
+    response_data['avatar'] = user.avatar.url if user.avatar else None
+    
+    # Rol y permisos
+    role_data = None
+    if user.role:
+        permissions = RolePermission.objects.filter(role=user.role).select_related("permission")
+        perms_list = [
+            {"label": rp.permission.label, "code": rp.permission.code}
+            for rp in permissions
+        ]
+        role_data = {
+            "name": user.role.name,
+            "permissions": perms_list
+        }
+    
+    response_data['role'] = role_data
     
     return Response(response_data)
 

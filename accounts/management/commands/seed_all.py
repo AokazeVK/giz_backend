@@ -427,15 +427,15 @@ class Command(BaseCommand):
         # 4. Crea los departamentos
         self.stdout.write(self.style.NOTICE("Creando los departamentos..."))
         for depto_name in departamentos_bolivia:
-            depto, created = Departamento.objects.get_or_create(name=depto_name)
+            depto, created = Departamento.objects.get_or_create(nombre=depto_name)
             if created:
                 self.stdout.write(
-                    self.style.SUCCESS(f'Departamento "{depto.name}" creado.')
+                    self.style.SUCCESS(f'Departamento "{depto.nombre}" creado.')
                 )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'El departamento "{depto.name}" ya existe. Saltando.'
+                        f'El departamento "{depto.nombre}" ya existe. Saltando.'
                     )
                 )
         self.stdout.write(

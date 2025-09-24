@@ -12,8 +12,10 @@ class Departamento(models.Model):
     # todos sus departamentos también se eliminarán.
     empresa = models.ForeignKey(
         Empresa, 
-        on_delete=models.CASCADE, 
-        related_name='departamentos'
+        on_delete=models.SET_NULL, 
+        related_name='departamentos',
+        null=True,
+        blank=True
     )
     
     def __str__(self):
