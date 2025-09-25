@@ -198,6 +198,7 @@ class SolicitudAsesoramientoSerializer(serializers.ModelSerializer):
         
 class PublicacionEmpresaComunidadSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source='empresa.nombre', read_only=True)
+    foto_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = PublicacionEmpresaComunidad
@@ -206,10 +207,17 @@ class PublicacionEmpresaComunidadSerializer(serializers.ModelSerializer):
             "empresa",
             "empresa_nombre",
             "titulo",
-            "fotourl",
+            "foto",        # 👈 este será para upload
+            "foto_url",    # 👈 este será para obtener la URL absoluta
             "descripcion",
             "activo",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "empresa_nombre"]
+        read_only_fields = ["id", "created_at", "updated_at", "empresa_nombre", "foto_url"]
+
+    def get_foto_url(self, obj):
+        request = self.context.get("request")
+        if request and obj.foto:
+            return request.build_absolute_uri(obj.foto.url)
+        return None

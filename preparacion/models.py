@@ -190,7 +190,7 @@ class PublicacionEmpresaComunidad(models.Model):
         Empresa, on_delete=models.CASCADE, related_name="publicaciones_comunidad"
     )
     titulo = models.CharField(max_length=255)
-    fotourl = models.URLField(null=True, blank=True)   # si querés subir archivo, cambiar a ImageField
+    foto = models.ImageField(upload_to="publicaciones/fotos/", null=True, blank=True)  # 👈 cambiado
     descripcion = models.TextField(null=True, blank=True)
     activo = models.BooleanField(default=True)
 
