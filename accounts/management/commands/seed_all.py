@@ -183,15 +183,75 @@ TREE = {
             ],
         },
         {
-            "label": "Empresas",
-            "code": "empresas",
-            "children": [
-                {"label": "Ver Empresas", "code": "ver_empresas"},
-                {"label": "Crear Empresas", "code": "crear_empresas"},
-                {"label": "Editar Empresas", "code": "editar_empresas"},
-                {"label": "Eliminar Empresas", "code": "eliminar_empresas"},
-            ],
-        },
+        "label": "Preparación",
+        "code": "preparacion",
+        "children": [
+            {
+                "label": "Empresas",
+                "code": "empresas",
+                "children": [
+                    {"label": "Ver Empresas", "code": "ver_empresas"},
+                    {"label": "Crear Empresas", "code": "crear_empresas"},
+                    {"label": "Editar Empresas", "code": "editar_empresas"},
+                    {"label": "Eliminar Empresas", "code": "eliminar_empresas"},
+                ],
+            },
+            {
+                "label": "Asesoramientos",
+                "code": "asesoramientos",
+                "children": [
+                    {"label": "Ver Asesoramientos", "code": "ver_asesoramientos"},
+                    {"label": "Crear Asesoramientos", "code": "crear_asesoramientos"},
+                    {"label": "Editar Asesoramientos", "code": "editar_asesoramientos"},
+                    {"label": "Eliminar Asesoramientos", "code": "eliminar_asesoramientos"},
+                    {"label": "Ver Asesoramientos Públicos", "code": "ver_asesoramientos_publicos"},
+                    {"label": "Listar Encargados Asesoramiento", "code": "listar_encargados_asesoramiento"},
+                    {"label": "Listar Archivos Asesoramiento", "code": "listar_archivos_asesoramiento"},
+                ],
+            },
+            {
+                "label": "Solicitudes de Asesoramiento",
+                "code": "solicitudes_asesoramiento",
+                "children": [
+                    {"label": "Ver Solicitudes", "code": "ver_solicitudes_asesoramiento"},
+                    {"label": "Crear Solicitudes", "code": "crear_solicitudes_asesoramiento"},
+                    {"label": "Aprobar Solicitudes", "code": "aprobar_solicitudes_asesoramiento"},
+                    {"label": "Rechazar Solicitudes", "code": "rechazar_solicitudes_asesoramiento"},
+                    {"label": "Completar Solicitudes", "code": "completar_solicitudes_asesoramiento"},
+                    {"label": "Cancelar Solicitudes", "code": "cancelar_solicitudes_asesoramiento"},
+                ],
+            },
+            {
+                "label": "Publicaciones Comunidad de Empresa",
+                "code": "publicaciones_comunidad",
+                "children": [
+                    {"label": "Ver Publicaciones", "code": "ver_publicaciones_comunidad"},
+                    {"label": "Crear Publicaciones", "code": "crear_publicaciones_comunidad"},
+                    {"label": "Editar Publicaciones", "code": "editar_publicaciones_comunidad"},
+                    {"label": "Eliminar Publicaciones", "code": "eliminar_publicaciones_comunidad"},
+                ],
+            },
+            {
+                "label": "Archivos de Asesoramiento",
+                "code": "archivos_asesoramiento",
+                "children": [
+                    {"label": "Listar Archivos", "code": "listar_archivos_asesoramiento"},
+                    {"label": "Crear Archivos", "code": "crear_archivos_asesoramiento"},
+                    {"label": "Eliminar Archivos", "code": "eliminar_archivos_asesoramiento"},
+                ],
+            },
+            {
+                "label": "Encargados de Asesoramiento",
+                "code": "encargados_asesoramiento",
+                "children": [
+                    {"label": "Listar Encargados", "code": "listar_encargados_asesoramiento"},
+                    {"label": "Crear Encargados", "code": "crear_encargados_asesoramiento"},
+                    {"label": "Editar Encargados", "code": "editar_encargados_asesoramiento"},
+                    {"label": "Eliminar Encargados", "code": "eliminar_encargados_asesoramiento"},
+                ],
+            },
+        ],
+    },
         {
             "label": "Sello",
             "code": "sello",
@@ -343,6 +403,17 @@ TREE = {
                             "label": "Alternar Fases de Evaluación",
                             "code": "editar_fases_evaluacion",
                         },
+                    ],
+                },
+                {
+                    "label": "Enlaces",
+                    "code": "enlaces",
+                    "children": [
+                        {"label": "Ver Enlaces", "code": "ver_enlaces"},
+                        {"label": "Crear Enlaces", "code": "crear_enlaces"},
+                        {"label": "Editar Enlaces", "code": "editar_enlaces"},
+                        {"label": "Eliminar Enlaces", "code": "eliminar_enlaces"},
+                        {"label": "Ver Enlaces Públicos", "code": "ver_enlaces_publicos"},
                     ],
                 },
             ],

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 # Importa los nuevos modelos
-from .models import RequisitoInputValor, TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases, EvaluacionDato
+from .models import RequisitoInputValor, TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases, EvaluacionDato, Enlaces
 from preparacion.models import FaseEmpresa
 
 from accounts.models import User
@@ -278,3 +278,9 @@ class EvaluacionDatoSerializer(serializers.ModelSerializer):
         FaseEmpresa.objects.get_or_create(empresa=empresa, gestion=gestion)
         
         return super().create(validated_data)
+
+class EnlacesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Enlaces
+        fields = ["id", "nombre", "url", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]

@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Prefetch
 
 # Módulos locales
-from accounts.models import User, Encargado, Ministerio
+from accounts.models import User
 from accounts.serializers import UserSerializer
 from accounts.permissions import HasPermissionMap
 from accounts.utils import log_user_action

@@ -221,3 +221,18 @@ class EvaluacionDato(models.Model):
         return f"Dato de evaluación para {self.checklist_evaluacion.nombre} - {self.empresa.nombre} ({self.gestion})"
 
 auditlog.register(EvaluacionDato)
+
+# ============================
+#   ENLACES
+# ============================
+class Enlaces(models.Model):
+    nombre = models.CharField(max_length=255)
+    url = models.URLField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.nombre
+
+auditlog.register(Enlaces)
