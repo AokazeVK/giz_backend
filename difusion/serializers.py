@@ -14,7 +14,7 @@ class MinisterioSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Ministerio
-        fields = ["id", "nombre", "direccion", "is_active", "encargados"]
+        fields = ["id", "nombre", "direccion", "is_active", "encargados", "fecha_confirmacion_recepcion_convocatoria"]
 
 class ArchivoFechaConvocatoriaSerializer(serializers.ModelSerializer):
     url_file = serializers.SerializerMethodField(read_only=True)

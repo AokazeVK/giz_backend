@@ -118,7 +118,7 @@ class EmpresaSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "nombre",
-            
+            "matricula",
             "tipo",
             "direccion",
             "is_active",

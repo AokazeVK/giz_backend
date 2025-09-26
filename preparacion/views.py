@@ -16,6 +16,7 @@ from accounts.utils import log_user_action
 from dashboard.models import Departamento
 from dashboard.serializers import DepartamentoSerializer
 from .models import (
+    Capacitacion,
     Empresa,
     FaseEmpresa,
     Asesoramiento,
@@ -25,6 +26,7 @@ from .models import (
     EncargadoAsesoramiento
 )
 from .serializers import (
+    CapacitacionSerializer,
     EmpresaSerializer,
     FaseEmpresaSerializer,
     AsesoramientoSerializer,
@@ -365,3 +367,58 @@ class EncargadoAsesoramientoViewSet(viewsets.ModelViewSet):
         status_message = "activo" if encargado_as.is_active else "inactivo"
         log_user_action(request.user, f"Cambió estado de Encargado de Asesoramiento '{encargado_as.nombre}' a '{status_message}'", request)
         return Response({'message': f'Encargado de Asesoramiento ahora está {status_message}.'}, status=status.HTTP_200_OK)
+
+class CapacitacionViewSet(viewsets.ModelViewSet):
+    queryset = Capacitacion.objects.all().order_by("-created_at")
+    serializer_class = CapacitacionSerializer
+    permission_classes = [IsAuthenticated, HasPermissionMap]
+
+    permission_code_map = {
+        "list": "ver_capacitaciones",
+        "retrieve": "ver_capacitaciones",
+        "create": "crear_capacitaciones",
+        "update": "editar_capacitaciones",
+        "partial_update": "editar_capacitaciones",
+        "destroy": "eliminar_capacitaciones",
+        "toggle_estado": "editar_capacitaciones",
+    }
+
+    def perform_create(self, serializer):
+        capacitacion = serializer.save()
+        log_user_action(
+            self.request.user,
+            f"Creó la capacitación '{capacitacion.nombre}'",
+            self.request
+        )
+
+    def perform_update(self, serializer):
+        capacitacion = serializer.save()
+        log_user_action(
+            self.request.user,
+            f"Editó la capacitación '{capacitacion.nombre}'",
+            self.request
+        )
+
+    def perform_destroy(self, instance):
+        log_user_action(
+            self.request.user,
+            f"Eliminó la capacitación '{instance.nombre}'",
+            self.request
+        )
+        super().perform_destroy(instance)
+
+    @action(detail=True, methods=["post"], url_path="toggle-estado")
+    def toggle_estado(self, request, pk=None):
+        capacitacion = self.get_object()
+        capacitacion.is_active = not capacitacion.is_active
+        capacitacion.save()
+        estado = "activa" if capacitacion.is_active else "inactiva"
+        log_user_action(
+            request.user,
+            f"Cambió estado de la capacitación '{capacitacion.nombre}' a {estado}",
+            request
+        )
+        return Response(
+            {"message": f"La capacitación '{capacitacion.nombre}' ahora está {estado}."},
+            status=status.HTTP_200_OK
+        )
