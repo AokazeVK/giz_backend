@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from preparacion.models import Empresa
 from .models import Role, Permission, User, UserActionLog
 
 
@@ -65,25 +67,32 @@ class RoleSerializer(serializers.ModelSerializer):
         return instance
 
 
+class SimpleRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ("id", "name")
+
+
+class SimpleEmpresaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Empresa
+        fields = ("id", "nombre")
+
 class UserSerializer(serializers.ModelSerializer):
+    role = SimpleRoleSerializer(read_only=True) 
     role_name = serializers.CharField(source="role.name", read_only=True)
     password = serializers.CharField(write_only=True, required=False)
     confirm_password = serializers.CharField(write_only=True, required=False)
     
     # Aquí anidamos el serializador de Empresa
-    empresa = serializers.SerializerMethodField()
-
+    empresa = SimpleEmpresaSerializer(read_only=True) 
 
     class Meta:
         model = User
         fields = ("id", "username", "email", "role", "role_name", "is_active", "password", "confirm_password", "avatar", "empresa")
 
 
-    def get_empresa(self, obj):
-        from preparacion.serializers import EmpresaSerializer  # 👈 lazy import aquí
-        if obj.empresa:
-            return EmpresaSerializer(obj.empresa, context=self.context).data
-        return None
+  
 
     def validate(self, data):
         password = data.get("password")

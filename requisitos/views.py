@@ -679,6 +679,7 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
             usuario_id = item.usuario.id
             usuario_email = item.usuario.email
             empresa = item.usuario.empresa.nombre
+            empresa_id = item.usuario.empresa.id
 
             # Crear la estructura si no existe
             if requisito_id not in grouped_data:
@@ -697,6 +698,7 @@ class RequisitoInputValorViewSet(viewsets.ModelViewSet):
                     "tipo_sello":tipo_sello,
                     "tipo_sello_id":tipo_sello_id,
                     "empresa":empresa,
+                    "empresa_id":empresa_id,
                     "valores_requisito": [],
 
                 }
@@ -964,7 +966,9 @@ class EvaluacionDatoViewSet(viewsets.ModelViewSet):
                     "puntaje": dato.puntaje,
                     "comentarios": dato.comentarios,
                     "nombre_empresa": dato.empresa.nombre,
+                    "empresa_id":dato.empresa.id,
                     "usuario_calificador": dato.usuario.email,
+                    "usuario_calificador_id":dato.usuario.id,
                     "checklist": {
                         "id": dato.checklist_evaluacion.id,
                         "nombre": dato.checklist_evaluacion.nombre,

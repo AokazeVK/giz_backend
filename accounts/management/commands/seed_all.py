@@ -217,6 +217,17 @@ TREE = {
                     {"label": "Listar Archivos Asesoramiento", "code": "listar_archivos_asesoramiento"},
                 ],
             },
+             {
+                "label": "Capacitaciones",
+                "code": "capacitaciones",
+                "children": [
+                    {"label": "Ver Capacitaciones", "code": "ver_capacitaciones"},
+                    {"label": "Crear Capacitaciones", "code": "crear_capacitaciones"},
+                    {"label": "Editar Capacitaciones", "code": "editar_capacitaciones"},
+                    {"label": "Eliminar Capacitaciones", "code": "eliminar_capacitaciones"},
+                    {"label": "Ver Capacitaciones Públicos", "code": "ver_capacitaciones_publicos"},
+                ],
+            },
             {
                 "label": "Solicitudes de Asesoramiento",
                 "code": "solicitudes_asesoramiento",

@@ -19,6 +19,7 @@ from .models import (
     Capacitacion,
     Empresa,
     FaseEmpresa,
+    TipoSello,
     Asesoramiento,
     SolicitudAsesoramiento,
     PublicacionEmpresaComunidad,

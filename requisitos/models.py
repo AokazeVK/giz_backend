@@ -215,7 +215,8 @@ class EvaluacionDato(models.Model):
     class Meta:
         verbose_name = "Dato de Evaluación"
         verbose_name_plural = "Datos de Evaluación"
-        unique_together = ('usuario', 'checklist_evaluacion', 'gestion')
+        # ¡CAMBIO AQUI!
+        unique_together = ('usuario', 'checklist_evaluacion', 'gestion', 'empresa')
 
     def __str__(self):
         return f"Dato de evaluación para {self.checklist_evaluacion.nombre} - {self.empresa.nombre} ({self.gestion})"

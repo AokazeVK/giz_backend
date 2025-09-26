@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from rest_framework import serializers
 # Importa los nuevos modelos
 from .models import RequisitoInputValor, TipoSello, Requisito, RequisitoInput, ChecklistEvaluacion, Evaluacion, EvaluacionFases, EvaluacionDato, Enlaces
@@ -243,41 +244,56 @@ class EvaluacionDatoSerializer(serializers.ModelSerializer):
         puntaje = data.get('puntaje')
 
         if puntaje is not None and checklist is not None:
+            # Asumiendo que 'checklist.porcentaje' existe y es un Decimal
             if puntaje > checklist.porcentaje:
                 raise serializers.ValidationError(
                     {"puntaje": "El puntaje no puede ser mayor que el porcentaje del checklist."}
                 )
         
-        # Valida si ya existe un registro con las mismas claves únicas
-        # unique_together = ('usuario', 'checklist_evaluacion', 'gestion')
-        usuario = data.get('usuario')
-        gestion = self.context.get('gestion')
-
-        if EvaluacionDato.objects.filter(
-            usuario=usuario,
-            checklist_evaluacion=checklist,
-            gestion=gestion
-        ).exists():
-            raise serializers.ValidationError(
-                "Ya existe un registro de evaluación para este usuario, checklist y gestión."
-            )
+        # Eliminamos la validación manual de unicidad. 
+        # El método create/upsert se encargará de encontrar o crear el registro.
 
         return data
 
     def create(self, validated_data):
-        # Obtiene la gestión de la cookie del request, pasada por el contexto
+        # Obtiene la gestión de la cookie del request
         gestion = self.context['request'].COOKIES.get('gestion')
         if not gestion:
             raise serializers.ValidationError("No se pudo obtener la gestión de las cookies.")
         
-        # Agrega la gestión a los datos validados
+        # Agrega la gestión y el usuario (que viene de perform_create)
         validated_data['gestion'] = gestion
-
-        # Crea un registro en FaseEmpresa si no existe
-        empresa = validated_data.get('empresa')
-        FaseEmpresa.objects.get_or_create(empresa=empresa, gestion=gestion)
+        usuario = validated_data.pop('usuario') # Extrae el usuario para usarlo en la búsqueda
         
-        return super().create(validated_data)
+        # Claves únicas para la operación de upsert
+        unique_keys = {
+            'usuario': usuario,
+            'checklist_evaluacion': validated_data['checklist_evaluacion'],
+            'gestion': validated_data['gestion'],
+            'empresa': validated_data['empresa'], # ¡NUEVA CLAVE!
+        }
+
+        # Datos a actualizar o crear
+        defaults = {
+            'puntaje': validated_data['puntaje'],
+            'comentarios': validated_data.get('comentarios', ''), # Usa .get para campo opcional
+        }
+
+        # Realiza la operación de UPSET usando update_or_create
+        try:
+            instance, created = EvaluacionDato.objects.update_or_create(
+                defaults=defaults, 
+                **unique_keys
+            )
+        except IntegrityError as e:
+            # Manejo de error en caso de problemas con la base de datos (p. ej., concurrencia)
+            raise serializers.ValidationError(f"Error al intentar crear/actualizar el registro: {e}")
+
+        # Crea un registro en FaseEmpresa si no existe (mantenemos esta lógica)
+        FaseEmpresa.objects.get_or_create(empresa=instance.empresa, gestion=gestion)
+        
+        return instance
+
 
 class EnlacesSerializer(serializers.ModelSerializer):
     class Meta:

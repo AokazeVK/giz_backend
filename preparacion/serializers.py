@@ -70,16 +70,20 @@ class AsesoramientoSerializer(serializers.ModelSerializer):
         fields = ["id", "nombre", "descripcion", "foto", "is_active", "created_at"]
 
 
+class SimpleUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "username", "email")
+        
 # ================
 # FASE EMPRESA
 # ================
 class FaseEmpresaSerializer(serializers.ModelSerializer):
     # Campo para incluir los datos del evaluador
-    evaluador = UserSerializer(read_only=True)
+    evaluador = SimpleUserSerializer(read_only=True)
     class Meta:
         model = FaseEmpresa
         fields = ["id", "fase_numero", "gestion", "evaluador", "is_active", "created_at"]
-
 
 # ================
 # EMPRESA
