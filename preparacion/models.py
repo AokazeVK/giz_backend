@@ -11,7 +11,7 @@ from accounts.models import User
 class Empresa(models.Model):
     nombre = models.CharField(max_length=255)
     matricula = models.CharField(max_length=100, unique=True)
-    nit = models.CharField(max_length=100, unique=True)
+    nit = models.CharField(max_length=100, unique=True, blank=True, null=True)
     tipo = models.CharField(max_length=100)
     direccion = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)

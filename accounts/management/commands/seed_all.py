@@ -147,16 +147,6 @@ TREE = {
                         },
                     ],
                 },
-                {
-                    "label": "Departamentos",
-                    "code": "departamentos",
-                    "children": [
-                        {"label": "Crear Departamentos", "code": "crear_departamentos"},
-                        {"label": "Editar Departamentos", "code": "editar_departamentos"},
-                        {"label": "Eliminar Departamentos", "code": "eliminar_departamentos"},
-                        {"label": "Listar Departamentos", "code": "listar_departamentos"},
-                    ],
-                },
             ],
         },
         {
@@ -176,12 +166,29 @@ TREE = {
             ],
         },
         {
-            "label": "Dashboard",
-            "code": "dashboard",
-            "children": [
-                {"label": "Listar Dashboard", "code": "listar_dashboard"},
-            ],
-        },
+        "label": "Dashboard",
+        "code": "dashboard",
+        "children": [
+            {
+                "label": "Dashboard",
+                "code": "dashboard",
+                "children": [
+                    {"label": "Listar Dashboard", "code": "listar_dashboard"},
+                    {"label": "Listar Dashboard Análisis", "code": "listar_dashboard_analisis"}
+                ],
+            },
+            {
+                "label": "Departamentos",
+                "code": "departamentos",
+                "children": [
+                    {"label": "Crear Departamentos", "code": "crear_departamentos"},
+                    {"label": "Editar Departamentos", "code": "editar_departamentos"},
+                    {"label": "Eliminar Departamentos", "code": "eliminar_departamentos"},
+                    {"label": "Listar Departamentos", "code": "listar_departamentos"}
+                ],
+            },
+        ]
+    },
         {
         "label": "Preparación",
         "code": "preparacion",
@@ -194,6 +201,7 @@ TREE = {
                     {"label": "Crear Empresas", "code": "crear_empresas"},
                     {"label": "Editar Empresas", "code": "editar_empresas"},
                     {"label": "Eliminar Empresas", "code": "eliminar_empresas"},
+                    {"label": "Aprobar Empresas", "code": "aprobar_empresas"},
                 ],
             },
             {

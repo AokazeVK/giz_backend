@@ -52,6 +52,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         "toggle_status": "editar_empresas",
         "listar_usuarios": "ver_empresas",
         "listar_departamentos": "ver_empresas",
+        "aprobar": "aprobar_empresas",
     }
 
     def perform_create(self, serializer):
@@ -115,6 +116,36 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         departamentos = Departamento.objects.all().order_by("nombre")
         serializer = DepartamentoSerializer(departamentos, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=["patch"], url_path="aprobar")
+    def aprobar(self, request, pk=None):
+        """
+        Acción para aprobar una empresa y asignar un tipo de sello.
+        Espera en body: { "tipoSello": <id_tipo_sello> }
+        """
+        empresa = self.get_object()
+        tipo_sello_id = request.data.get("tipoSello")
+
+        if not tipo_sello_id:
+            return Response({"error": "Debes enviar el id del tipoSello"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tipo_sello = TipoSello.objects.get(id=tipo_sello_id)
+        except TipoSello.DoesNotExist:
+            return Response({"error": "TipoSello no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        empresa.isAproved = True
+        empresa.tipoSello = tipo_sello
+        empresa.save()
+
+        log_user_action(request.user, f"Aprobó la empresa {empresa.nombre} con sello {tipo_sello.nombre}")
+
+        return Response({"status": "Empresa aprobada correctamente", "empresa": {
+            "id": empresa.id,
+            "nombre": empresa.nombre,
+            "isAproved": empresa.isAproved,
+            "tipoSello": tipo_sello.nombre
+        }}, status=status.HTTP_200_OK)
 
 # ========================
 # ASESORAMIENTO
@@ -422,3 +453,4 @@ class CapacitacionViewSet(viewsets.ModelViewSet):
             {"message": f"La capacitación '{capacitacion.nombre}' ahora está {estado}."},
             status=status.HTTP_200_OK
         )
+    
