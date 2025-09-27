@@ -67,10 +67,6 @@ class RoleSerializer(serializers.ModelSerializer):
         return instance
 
 
-class SimpleRoleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Role
-        fields = ("id", "name")
 
 
 class SimpleEmpresaSerializer(serializers.ModelSerializer):
@@ -79,7 +75,6 @@ class SimpleEmpresaSerializer(serializers.ModelSerializer):
         fields = ("id", "nombre")
 
 class UserSerializer(serializers.ModelSerializer):
-    role = SimpleRoleSerializer(read_only=True) 
     role_name = serializers.CharField(source="role.name", read_only=True)
     password = serializers.CharField(write_only=True, required=False)
     confirm_password = serializers.CharField(write_only=True, required=False)
@@ -90,9 +85,6 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "username", "email", "role", "role_name", "is_active", "password", "confirm_password", "avatar", "empresa")
-
-
-  
 
     def validate(self, data):
         password = data.get("password")
